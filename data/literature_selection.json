@@ -1,0 +1,708 @@
+{
+  "landscape_count": 1000,
+  "serious_skim_count": 300,
+  "deep_read_count": 225,
+  "hostile_count": 100,
+  "top_titles": [
+    {
+      "rank": 1,
+      "title": "Continuous Optimization-Based Task and Motion Planning with Signal Temporal Logic Specifications for Sequential Manipulation",
+      "year": 2021,
+      "score": 84.6445,
+      "cited_by_count": 20
+    },
+    {
+      "rank": 2,
+      "title": "R-LGP: A Reachability-guided Logic-geometric Programming Framework for Optimal Task and Motion Planning on Mobile Manipulators",
+      "year": 2024,
+      "score": 84.0918,
+      "cited_by_count": 5
+    },
+    {
+      "rank": 3,
+      "title": "Planning Robotic Manipulation with Tight Environment Constraints",
+      "year": 2021,
+      "score": 82.8972,
+      "cited_by_count": 8
+    },
+    {
+      "rank": 4,
+      "title": "Learning compositional models of robot skills for task and motion planning",
+      "year": 2021,
+      "score": 80.5188,
+      "cited_by_count": 82
+    },
+    {
+      "rank": 5,
+      "title": "Combining high-level causal reasoning with low-level geometric reasoning and motion planning for robotic manipulation",
+      "year": 2011,
+      "score": 79.2442,
+      "cited_by_count": 126
+    },
+    {
+      "rank": 6,
+      "title": "Long-Horizon Multi-Robot Rearrangement Planning for Construction Assembly",
+      "year": 2022,
+      "score": 76.9773,
+      "cited_by_count": 87
+    },
+    {
+      "rank": 7,
+      "title": "Combined Task and Motion Planning as Classical AI Planning",
+      "year": 2017,
+      "score": 76.091,
+      "cited_by_count": 21
+    },
+    {
+      "rank": 8,
+      "title": "Learning Geometric Constraints in Task and Motion Planning",
+      "year": 2022,
+      "score": 75.7931,
+      "cited_by_count": 1
+    },
+    {
+      "rank": 9,
+      "title": "FFRob: Leveraging symbolic planning for efficient task and motion planning",
+      "year": 2017,
+      "score": 74.92,
+      "cited_by_count": 136
+    },
+    {
+      "rank": 10,
+      "title": "COAST: COnstraints And STreams for Task and Motion Planning",
+      "year": 2024,
+      "score": 74.2986,
+      "cited_by_count": 2
+    },
+    {
+      "rank": 11,
+      "title": "Robotic disassembly for end-of-life products focusing on task and motion planning: A comprehensive survey",
+      "year": 2024,
+      "score": 73.9322,
+      "cited_by_count": 27
+    },
+    {
+      "rank": 12,
+      "title": "AutoTAMP: Autoregressive Task and Motion Planning with LLMs as Translators and Checkers",
+      "year": 2024,
+      "score": 73.6905,
+      "cited_by_count": 72
+    },
+    {
+      "rank": 13,
+      "title": "Extended Task and Motion Planning of Long-horizon Robot Manipulation.",
+      "year": 2021,
+      "score": 73.3459,
+      "cited_by_count": 6
+    },
+    {
+      "rank": 14,
+      "title": "Fast MILP-based Task and Motion Planning for Pick-and-Place with Hard/Soft Constraints of Collision-Free Route",
+      "year": 2021,
+      "score": 72.5972,
+      "cited_by_count": 8
+    },
+    {
+      "rank": 15,
+      "title": "Contingent Task and Motion Planning under Uncertainty for Human\u2013Robot Interactions",
+      "year": 2020,
+      "score": 72.4726,
+      "cited_by_count": 15
+    },
+    {
+      "rank": 16,
+      "title": "Discovering State and Action Abstractions for Generalized Task and Motion Planning",
+      "year": 2022,
+      "score": 72.3726,
+      "cited_by_count": 15
+    },
+    {
+      "rank": 17,
+      "title": "Dual-Arm Mobile Manipulation Planning of a Long Deformable Object in Industrial Installation",
+      "year": 2023,
+      "score": 71.5189,
+      "cited_by_count": 24
+    },
+    {
+      "rank": 18,
+      "title": "Guiding Long-Horizon Task and Motion Planning with Vision Language Models",
+      "year": 2025,
+      "score": 71.2332,
+      "cited_by_count": 16
+    },
+    {
+      "rank": 19,
+      "title": "Multiple Mobile Robot Task and Motion Planning: A Survey",
+      "year": 2022,
+      "score": 71.1821,
+      "cited_by_count": 107
+    },
+    {
+      "rank": 20,
+      "title": "Simultaneous Action and Grasp Feasibility Prediction for Task and Motion Planning Through Multi-Task Learning",
+      "year": 2023,
+      "score": 71.0986,
+      "cited_by_count": 2
+    },
+    {
+      "rank": 21,
+      "title": "Combining task and motion planning for mobile manipulators",
+      "year": 2020,
+      "score": 71.0931,
+      "cited_by_count": 1
+    },
+    {
+      "rank": 22,
+      "title": "An incremental constraint-based framework for task and motion planning",
+      "year": 2018,
+      "score": 70.9283,
+      "cited_by_count": 124
+    },
+    {
+      "rank": 23,
+      "title": "Accelerating Integrated Task and Motion Planning with Neural Feasibility Checking",
+      "year": 2022,
+      "score": 70.1972,
+      "cited_by_count": 8
+    },
+    {
+      "rank": 24,
+      "title": "CaStL: Constraints as Specifications Through Llm Translation for Long-Horizon Task and Motion Planning",
+      "year": 2025,
+      "score": 70.0094,
+      "cited_by_count": 4
+    },
+    {
+      "rank": 25,
+      "title": "Combined Task and Motion Planning for Mobile Manipulation",
+      "year": 2010,
+      "score": 69.6327,
+      "cited_by_count": 206
+    },
+    {
+      "rank": 26,
+      "title": "Incremental Task and Motion Planning: A Constraint-Based Approach",
+      "year": 2016,
+      "score": 69.2299,
+      "cited_by_count": 168
+    },
+    {
+      "rank": 27,
+      "title": "Constraint Graphs: Unifying task and motion planning for Navigation and Manipulation Among Movable Obstacles",
+      "year": 2016,
+      "score": 69.1094,
+      "cited_by_count": 4
+    },
+    {
+      "rank": 28,
+      "title": "Optimal Task and Motion Planning and Execution for Multiagent Systems in Dynamic Environments",
+      "year": 2023,
+      "score": 68.9322,
+      "cited_by_count": 27
+    },
+    {
+      "rank": 29,
+      "title": "Environment Reconfiguration Planning for Autonomous Robotic Manipulation to overcome Mobility Constraints",
+      "year": 2021,
+      "score": 68.8918,
+      "cited_by_count": 5
+    },
+    {
+      "rank": 30,
+      "title": "Safe and Robust Motion Planning for Dynamic Robotics via Control Barrier Functions",
+      "year": 2021,
+      "score": 68.7889,
+      "cited_by_count": 39
+    },
+    {
+      "rank": 31,
+      "title": "Dual-arm Assembly Planning Considering Gravitational Constraints",
+      "year": 2019,
+      "score": 68.691,
+      "cited_by_count": 21
+    },
+    {
+      "rank": 32,
+      "title": "The new analog: A protocol for linking design and construction intent with algorithmic planning for robotic assembly of complex structures",
+      "year": 2021,
+      "score": 68.6794,
+      "cited_by_count": 7
+    },
+    {
+      "rank": 33,
+      "title": "Efficiently combining task and motion planning using geometric constraints",
+      "year": 2014,
+      "score": 68.6095,
+      "cited_by_count": 110
+    },
+    {
+      "rank": 34,
+      "title": "Sampling-based methods for factored task and motion planning",
+      "year": 2018,
+      "score": 68.4067,
+      "cited_by_count": 81
+    },
+    {
+      "rank": 35,
+      "title": "Kinematics and Local Motion Planning for Quasi-static Whole-body Mobile Manipulation",
+      "year": 2016,
+      "score": 67.8863,
+      "cited_by_count": 3
+    },
+    {
+      "rank": 36,
+      "title": "A Survey of Optimization-based Task and Motion Planning: From Classical To Learning Approaches",
+      "year": 2024,
+      "score": 67.7863,
+      "cited_by_count": 3
+    },
+    {
+      "rank": 37,
+      "title": "PROTAMP-RRT: A Probabilistic Integrated Task and Motion Planner Based on RRT",
+      "year": 2023,
+      "score": 67.4026,
+      "cited_by_count": 9
+    },
+    {
+      "rank": 38,
+      "title": "Task and Motion Informed Trees (TMIT*): Almost-Surely Asymptotically Optimal Integrated Task and Motion Planning",
+      "year": 2022,
+      "score": 67.1957,
+      "cited_by_count": 19
+    },
+    {
+      "rank": 39,
+      "title": "Motion planning with obstacles and dynamic constraints (robotics)",
+      "year": 1988,
+      "score": 66.9094,
+      "cited_by_count": 4
+    },
+    {
+      "rank": 40,
+      "title": "CoPa: General Robotic Manipulation through Spatial Constraints of Parts with Foundation Models",
+      "year": 2024,
+      "score": 66.7501,
+      "cited_by_count": 46
+    },
+    {
+      "rank": 41,
+      "title": "Extended Tree Search for Robot Task and Motion Planning",
+      "year": 2021,
+      "score": 66.5849,
+      "cited_by_count": 11
+    },
+    {
+      "rank": 42,
+      "title": "Sampling-based motion planning with reachable volumes for high-degree-of-freedom manipulators",
+      "year": 2018,
+      "score": 66.4391,
+      "cited_by_count": 13
+    },
+    {
+      "rank": 43,
+      "title": "Semantic grasping: Planning robotic grasps functionally suitable for an object manipulation task",
+      "year": 2012,
+      "score": 66.1998,
+      "cited_by_count": 89
+    },
+    {
+      "rank": 44,
+      "title": "Logic-geometric programming: an optimization-based approach to combined task and motion planning",
+      "year": 2015,
+      "score": 66.1311,
+      "cited_by_count": 186
+    },
+    {
+      "rank": 45,
+      "title": "Sampling Based Motion Planning with Reachable Volumes",
+      "year": 2016,
+      "score": 65.9972,
+      "cited_by_count": 8
+    },
+    {
+      "rank": 46,
+      "title": "Distributed infrastructure inspection path planning for aerial robotics subject to time constraints",
+      "year": 2016,
+      "score": 65.7636,
+      "cited_by_count": 38
+    },
+    {
+      "rank": 47,
+      "title": "Grasp Planning Pipeline for Robust Manipulation of 3D Deformable Objects with Industrial Robotic Hand + Arm Systems",
+      "year": 2020,
+      "score": 65.2979,
+      "cited_by_count": 10
+    },
+    {
+      "rank": 48,
+      "title": "Path-Constrained Motion Planning for Robotics Based on Kinematic Constraints",
+      "year": 2007,
+      "score": 65.1445,
+      "cited_by_count": 20
+    },
+    {
+      "rank": 49,
+      "title": "Model Predictive Interaction Control for Robotic Manipulation Tasks",
+      "year": 2022,
+      "score": 65.1047,
+      "cited_by_count": 66
+    },
+    {
+      "rank": 50,
+      "title": "Large language models for chemistry robotics",
+      "year": 2023,
+      "score": 65.0951,
+      "cited_by_count": 98
+    },
+    {
+      "rank": 51,
+      "title": "Motion planning with dynamics awareness for long reach manipulation in aerial robotic systems with two arms",
+      "year": 2018,
+      "score": 64.8649,
+      "cited_by_count": 12
+    },
+    {
+      "rank": 52,
+      "title": "Full-body motion planning and control for the car egress task of the DARPA robotics challenge",
+      "year": 2015,
+      "score": 64.7849,
+      "cited_by_count": 11
+    },
+    {
+      "rank": 53,
+      "title": "Optimal Grasps and Placements for Task and Motion Planning in Clutter",
+      "year": 2023,
+      "score": 64.5863,
+      "cited_by_count": 3
+    },
+    {
+      "rank": 54,
+      "title": "Reactive task and motion planning for robust whole-body dynamic locomotion in constrained environments",
+      "year": 2022,
+      "score": 64.491,
+      "cited_by_count": 21
+    },
+    {
+      "rank": 55,
+      "title": "Motion Planning for Aerial Pick-and-Place With Geometric Feasibility Constraints",
+      "year": 2024,
+      "score": 64.4444,
+      "cited_by_count": 18
+    },
+    {
+      "rank": 56,
+      "title": "Counterexample-Guided Repair for Symbolic-Geometric Action Abstractions",
+      "year": 2021,
+      "score": 63.9986,
+      "cited_by_count": 2
+    },
+    {
+      "rank": 57,
+      "title": "M<sup>2</sup> Diffuser: Diffusion-based Trajectory Optimization for Mobile Manipulation in 3D Scenes",
+      "year": 2025,
+      "score": 63.8026,
+      "cited_by_count": 9
+    },
+    {
+      "rank": 58,
+      "title": "PDDLStream: Integrating Symbolic Planners and Blackbox Samplers via Optimistic Adaptive Planning",
+      "year": 2020,
+      "score": 63.1705,
+      "cited_by_count": 175
+    },
+    {
+      "rank": 59,
+      "title": "A combined approach for robot placement and coverage path planning for mobile manipulation",
+      "year": 2017,
+      "score": 63.0012,
+      "cited_by_count": 29
+    },
+    {
+      "rank": 60,
+      "title": "Payload-Aware Trajectory Optimisation for Non-Holonomic Mobile Multi-Robot Manipulation With Tip-Over Avoidance",
+      "year": 2024,
+      "score": 62.691,
+      "cited_by_count": 21
+    },
+    {
+      "rank": 61,
+      "title": "Formal design of robot Integrated Task and Motion Planning",
+      "year": 2016,
+      "score": 62.4972,
+      "cited_by_count": 8
+    },
+    {
+      "rank": 62,
+      "title": "Sensor-based motion planning for path tracking and obstacle avoidance of robotic vehicles with nonholonomic constraints",
+      "year": 2012,
+      "score": 62.4904,
+      "cited_by_count": 17
+    },
+    {
+      "rank": 63,
+      "title": "Sequential Manipulation Planning on Scene Graph",
+      "year": 2022,
+      "score": 62.2553,
+      "cited_by_count": 34
+    },
+    {
+      "rank": 64,
+      "title": "Learning Feasibility for Task and Motion Planning in Tabletop Environments",
+      "year": 2019,
+      "score": 62.1438,
+      "cited_by_count": 76
+    },
+    {
+      "rank": 65,
+      "title": "Geometric backtracking for combined task and motion planning in robotic systems",
+      "year": 2015,
+      "score": 62.1047,
+      "cited_by_count": 66
+    },
+    {
+      "rank": 66,
+      "title": "Identification and active exploration of deformable object boundary constraints through robotic manipulation",
+      "year": 2014,
+      "score": 62.0081,
+      "cited_by_count": 14
+    },
+    {
+      "rank": 67,
+      "title": "VoxPoser: Composable 3D Value Maps for Robotic Manipulation with Language Models",
+      "year": 2023,
+      "score": 61.9773,
+      "cited_by_count": 87
+    },
+    {
+      "rank": 68,
+      "title": "Multi-robot geometric task-and-motion planning for collaborative manipulation tasks",
+      "year": 2023,
+      "score": 61.8649,
+      "cited_by_count": 12
+    },
+    {
+      "rank": 69,
+      "title": "Time-optimal tool motion planning with tool-tip kinematic constraints for robotic machining of sculptured surfaces",
+      "year": 2020,
+      "score": 61.7744,
+      "cited_by_count": 64
+    },
+    {
+      "rank": 70,
+      "title": "Development of Sensory-Motor Fusion-Based Manipulation and Grasping Control for a Robotic Hand-Eye System",
+      "year": 2016,
+      "score": 61.6698,
+      "cited_by_count": 143
+    },
+    {
+      "rank": 71,
+      "title": "Randomized path planning for linkages with closed kinematic chains",
+      "year": 2001,
+      "score": 61.604,
+      "cited_by_count": 181
+    },
+    {
+      "rank": 72,
+      "title": "Motion Planning of Multi-Limbed Robots Subject to Equilibrium Constraints: The Free-Climbing Robot Problem",
+      "year": 2006,
+      "score": 61.4417,
+      "cited_by_count": 170
+    },
+    {
+      "rank": 73,
+      "title": "Robot motion planning with nonholonomic constraints",
+      "year": 2003,
+      "score": 61.4264,
+      "cited_by_count": 33
+    },
+    {
+      "rank": 74,
+      "title": "Path-Constrained Time-Optimal Motion Planning for Robot Manipulators With Third-Order Constraints",
+      "year": 2023,
+      "score": 61.3445,
+      "cited_by_count": 20
+    },
+    {
+      "rank": 75,
+      "title": "Path Planning under Interface-Based Constraints for Assistive Robotics",
+      "year": 2016,
+      "score": 61.2972,
+      "cited_by_count": 8
+    },
+    {
+      "rank": 76,
+      "title": "Embodied Lifelong Learning for Task and Motion Planning",
+      "year": 2023,
+      "score": 61.2972,
+      "cited_by_count": 8
+    },
+    {
+      "rank": 77,
+      "title": "Motion planning of mobile multi-limb robotic systems subject to force and friction constraints",
+      "year": 2003,
+      "score": 61.1842,
+      "cited_by_count": 43
+    },
+    {
+      "rank": 78,
+      "title": "Uncertainty-based Online Mapping and Motion Planning for Marine Robotics Guidance",
+      "year": 2018,
+      "score": 60.534,
+      "cited_by_count": 30
+    },
+    {
+      "rank": 79,
+      "title": "The Adaptive Hermite Fractal Tree (AHFT): a novel surgical 3D path planning approach with curvature and heading constraints",
+      "year": 2019,
+      "score": 60.4918,
+      "cited_by_count": 48
+    },
+    {
+      "rank": 80,
+      "title": "Motion planning for robotics: A review for sampling-based planners",
+      "year": 2025,
+      "score": 60.3377,
+      "cited_by_count": 41
+    },
+    {
+      "rank": 81,
+      "title": "Learning to Search in Task and Motion Planning With Streams",
+      "year": 2023,
+      "score": 60.3355,
+      "cited_by_count": 22
+    },
+    {
+      "rank": 82,
+      "title": "Flexibly configuring task and motion planning problems for mobile manipulators",
+      "year": 2020,
+      "score": 60.2332,
+      "cited_by_count": 16
+    },
+    {
+      "rank": 83,
+      "title": "A Collision-Free MPC for Whole-Body Dynamic Locomotion and Manipulation",
+      "year": 2022,
+      "score": 60.1485,
+      "cited_by_count": 69
+    },
+    {
+      "rank": 84,
+      "title": "Mobile Robotics in Agricultural Operations: A Narrative Review on Planning Aspects",
+      "year": 2020,
+      "score": 59.9444,
+      "cited_by_count": 103
+    },
+    {
+      "rank": 85,
+      "title": "A constraint-based method for solving sequential manipulation planning problems",
+      "year": 2014,
+      "score": 59.8938,
+      "cited_by_count": 162
+    },
+    {
+      "rank": 86,
+      "title": "Planning in-hand object manipulation with multifingered hands considering task constraints",
+      "year": 2013,
+      "score": 59.8512,
+      "cited_by_count": 51
+    },
+    {
+      "rank": 87,
+      "title": "Hierarchical Motion Planning With Dynamical Feasibility Guarantees for Mobile Robotic Vehicles",
+      "year": 2011,
+      "score": 59.6485,
+      "cited_by_count": 69
+    },
+    {
+      "rank": 88,
+      "title": "Constraint propagation on interval bounds for dealing with geometric backtracking",
+      "year": 2012,
+      "score": 59.2905,
+      "cited_by_count": 72
+    },
+    {
+      "rank": 89,
+      "title": "A Comprehensive Review of Coverage Path Planning in Robotics Using Classical and Heuristic Algorithms",
+      "year": 2021,
+      "score": 59.0494,
+      "cited_by_count": 313
+    },
+    {
+      "rank": 90,
+      "title": "Graph Wasserstein Autoencoder-Based Asymptotically Optimal Motion Planning With Kinematic Constraints for Robotic Manipulation",
+      "year": 2022,
+      "score": 59.0459,
+      "cited_by_count": 6
+    },
+    {
+      "rank": 91,
+      "title": "Path planning for mobile manipulator robots under non-holonomic and task constraints",
+      "year": 2020,
+      "score": 59.0444,
+      "cited_by_count": 18
+    },
+    {
+      "rank": 92,
+      "title": "Model-Predictive Motion Planning: Several Key Developments for Autonomous Mobile Robots",
+      "year": 2014,
+      "score": 58.9821,
+      "cited_by_count": 107
+    },
+    {
+      "rank": 93,
+      "title": "PMK\u2014A Knowledge Processing Framework for Autonomous Robotics Perception and Manipulation",
+      "year": 2019,
+      "score": 58.9431,
+      "cited_by_count": 62
+    },
+    {
+      "rank": 94,
+      "title": "Co-Optimization of Communication and Motion Planning of a Robotic Operation under Resource Constraints and in Fading Environments",
+      "year": 2013,
+      "score": 58.9109,
+      "cited_by_count": 90
+    },
+    {
+      "rank": 95,
+      "title": "Motion planning framework based on dual-agent DDPG method for dual-arm robots guided by human joint angle constraints",
+      "year": 2024,
+      "score": 58.9094,
+      "cited_by_count": 4
+    },
+    {
+      "rank": 96,
+      "title": "Multi-Level Task Learning Based on Intention and Constraint Inference for Autonomous Robotic Manipulation",
+      "year": 2022,
+      "score": 58.7794,
+      "cited_by_count": 7
+    },
+    {
+      "rank": 97,
+      "title": "Learning to guide task and motion planning using score-space representation",
+      "year": 2019,
+      "score": 58.6073,
+      "cited_by_count": 54
+    },
+    {
+      "rank": 98,
+      "title": "Constraints on intervals for reducing the search space of geometric configurations",
+      "year": 2012,
+      "score": 58.5931,
+      "cited_by_count": 1
+    },
+    {
+      "rank": 99,
+      "title": "Autonomous Robot Planning System for In-Space Assembly of Reconfigurable Structures",
+      "year": 2021,
+      "score": 58.5581,
+      "cited_by_count": 25
+    },
+    {
+      "rank": 100,
+      "title": "Global Manipulation Planning in Robot Joint Space With Task Constraints",
+      "year": 2010,
+      "score": 58.5375,
+      "cited_by_count": 207
+    }
+  ]
+}
