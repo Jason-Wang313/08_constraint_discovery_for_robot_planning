@@ -70,3 +70,19 @@ Constraint families:
 
 At active probability 0.35, ACS has median cost 22.01, compared with blind repair 261.01, family repair 65.16, and edge verification 116.79.
 The result is intended as runnable evidence for the mechanism, not as a physical-robot validation. It demonstrates the regime where discovering an active constraint family before planning is different from paying for failures or verifier calls inside search.
+
+## Signature Noise Stress
+
+At active probability 0.35, the diagnostic signature is corrupted before planning. False negatives miss active families; false positives mark inactive families as active. The table below summarizes all 900 trials per scenario.
+
+| Scenario | False negative | False positive | Valid-plan rate | Median total cost | Mean invalid executions |
+|---|---:|---:|---:|---:|---:|
+| exact | 0.00 | 0.00 | 1.000 | 22.14 | 0.00 |
+| miss_0.02 | 0.02 | 0.00 | 0.962 | 22.20 | 0.04 |
+| miss_0.05 | 0.05 | 0.00 | 0.887 | 22.39 | 0.11 |
+| miss_0.10 | 0.10 | 0.00 | 0.766 | 22.94 | 0.23 |
+| miss_0.20 | 0.20 | 0.00 | 0.584 | 25.35 | 0.42 |
+| false_positive_0.05 | 0.00 | 0.05 | 1.000 | 22.45 | 0.00 |
+| false_positive_0.10 | 0.00 | 0.10 | 1.000 | 22.92 | 0.00 |
+
+Interpretation: ACS is highly sensitive to false negatives because a missed active family can leave an invalid low-cost branch in the planner. False positives are safer in this simulator because the conservative untagged chain remains, but they can raise cost or remove valid options in less forgiving graphs.

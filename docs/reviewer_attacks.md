@@ -32,9 +32,9 @@ Weakness: The title and abstract must not overstate "constraint discovery" as di
 
 ## Attack 6: Diagnostics could be noisy or expensive.
 
-Response: The main theorem assumes sound discovery and the simulator uses deterministic probes. The paper explicitly marks noise robustness as future work and shows ACS loses when no constraints are active because it pays diagnostic cost.
+Response: The main theorem assumes sound discovery. The v2 signature-noise stress shows how fragile false negatives are: at active probability 0.35, valid-plan rate falls from 1.000 exact to 0.887 at 5% active-family misses, 0.766 at 10%, and 0.584 at 20%. The paper should frame ACS as requiring low-false-negative diagnostics or abstaining to verification.
 
-Weakness: Reviewers may demand a noisy-probe ablation. It is not present in the current evidence package.
+Weakness: The stress is synthetic and does not solve calibrated real diagnostics.
 
 ## Attack 7: Edge verification is made too expensive.
 

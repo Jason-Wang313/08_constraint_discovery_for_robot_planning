@@ -1,5 +1,6 @@
 import csv
 import json
+import random
 import statistics
 import sys
 from collections import defaultdict
@@ -10,7 +11,15 @@ import matplotlib.pyplot as plt
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from acs_planning import FAMILIES, FAMILY_DESCRIPTIONS, generate_problem, run_all_methods
+from acs_planning import (
+    FAMILIES,
+    FAMILY_DESCRIPTIONS,
+    cost_model,
+    first_violation,
+    generate_problem,
+    run_all_methods,
+    shortest_path,
+)
 
 
 RESULTS = ROOT / "results"
@@ -74,6 +83,130 @@ def write_csv(path, rows, fieldnames):
         writer.writeheader()
         for row in rows:
             writer.writerow(row)
+
+
+def noisy_signature_trial(problem, rng, false_negative_rate, false_positive_rate):
+    discovered = set()
+    for family in FAMILIES:
+        if family in problem.active:
+            if rng.random() >= false_negative_rate:
+                discovered.add(family)
+        elif rng.random() < false_positive_rate:
+            discovered.add(family)
+
+    plan = shortest_path(problem, forbidden_families=discovered)
+    violation = None if plan.path is None else first_violation(problem, plan.path)
+    success = plan.path is not None and violation is None
+    invalid_executions = 1 if violation is not None else 0
+    total = cost_model(
+        plan.path_cost,
+        plan.expansions,
+        0,
+        len(FAMILIES),
+        invalid_executions,
+        success,
+    )
+    missed = len(set(problem.active) - discovered)
+    false_positives = len(discovered - set(problem.active))
+    return {
+        "success": success,
+        "total_cost": total,
+        "path_cost": plan.path_cost,
+        "expansions": plan.expansions,
+        "invalid_executions": invalid_executions,
+        "missed_active_families": missed,
+        "false_positive_families": false_positives,
+    }
+
+
+def run_signature_noise_stress(active_probability=0.35, trials=180, repeats=5):
+    scenarios = [
+        ("exact", 0.00, 0.00),
+        ("miss_0.02", 0.02, 0.00),
+        ("miss_0.05", 0.05, 0.00),
+        ("miss_0.10", 0.10, 0.00),
+        ("miss_0.20", 0.20, 0.00),
+        ("false_positive_0.05", 0.00, 0.05),
+        ("false_positive_0.10", 0.00, 0.10),
+    ]
+    rows = []
+    for scenario, fn_rate, fp_rate in scenarios:
+        for repeat in range(repeats):
+            random_seed = 900000 + repeat * 10000 + int(fn_rate * 1000) * 100 + int(fp_rate * 1000)
+            local_rng = random.Random(random_seed)
+            for trial in range(trials):
+                seed = 910000 + int(active_probability * 1000) * 1000 + repeat * 10000 + trial
+                problem = generate_problem(seed=seed, active_probability=active_probability)
+                result = noisy_signature_trial(problem, local_rng, fn_rate, fp_rate)
+                rows.append(
+                    {
+                        "scenario": scenario,
+                        "active_probability": f"{active_probability:.2f}",
+                        "repeat": repeat,
+                        "trial": trial,
+                        "false_negative_rate": f"{fn_rate:.2f}",
+                        "false_positive_rate": f"{fp_rate:.2f}",
+                        "active_family_count": len(problem.active),
+                        "success": str(result["success"]).lower(),
+                        "total_cost": f"{result['total_cost']:.6f}",
+                        "path_cost": f"{result['path_cost']:.6f}",
+                        "expansions": result["expansions"],
+                        "invalid_executions": result["invalid_executions"],
+                        "missed_active_families": result["missed_active_families"],
+                        "false_positive_families": result["false_positive_families"],
+                    }
+                )
+    return rows
+
+
+def summarize_signature_noise(rows):
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[row["scenario"]].append(row)
+    summary = []
+    for scenario, vals in grouped.items():
+        costs = [float(v["total_cost"]) for v in vals]
+        successes = [1.0 if v["success"] == "true" else 0.0 for v in vals]
+        invalids = [float(v["invalid_executions"]) for v in vals]
+        missed = [float(v["missed_active_families"]) for v in vals]
+        fps = [float(v["false_positive_families"]) for v in vals]
+        first = vals[0]
+        summary.append(
+            {
+                "scenario": scenario,
+                "false_negative_rate": first["false_negative_rate"],
+                "false_positive_rate": first["false_positive_rate"],
+                "trials": len(vals),
+                "success_rate": mean(successes),
+                "median_total_cost": statistics.median(costs),
+                "mean_invalid_executions": mean(invalids),
+                "mean_missed_active_families": mean(missed),
+                "mean_false_positive_families": mean(fps),
+            }
+        )
+    return sorted(summary, key=lambda r: (float(r["false_positive_rate"]) > 0, float(r["false_negative_rate"]), float(r["false_positive_rate"])))
+
+
+def write_signature_noise_table(summary):
+    wanted = ["exact", "miss_0.02", "miss_0.05", "miss_0.10", "miss_0.20"]
+    by = {row["scenario"]: row for row in summary}
+    labels = ["0\\%", "2\\%", "5\\%", "10\\%", "20\\%"]
+    lines = [
+        "\\begin{tabular}{lrrrrr}",
+        "\\toprule",
+        "Metric & " + " & ".join(labels) + " \\\\",
+        "\\midrule",
+    ]
+    metrics = [
+        ("success_rate", "Valid-plan rate", "{:.3f}"),
+        ("median_total_cost", "Median total cost", "{:.2f}"),
+        ("mean_invalid_executions", "Invalid executions", "{:.2f}"),
+    ]
+    for key, label, fmt in metrics:
+        values = [fmt.format(float(by[scenario][key])) for scenario in wanted]
+        lines.append(f"{label} & " + " & ".join(values) + " \\\\")
+    lines.extend(["\\bottomrule", "\\end{tabular}"])
+    (RESULTS / "signature_noise_table.tex").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def plot_summary(summary):
@@ -175,6 +308,31 @@ def write_report(summary, config):
     (DOCS / "experiment_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def append_signature_noise_report(noise_summary):
+    path = DOCS / "experiment_report.md"
+    text = path.read_text(encoding="utf-8")
+    lines = [
+        "",
+        "## Signature Noise Stress",
+        "",
+        "At active probability 0.35, the diagnostic signature is corrupted before planning. False negatives miss active families; false positives mark inactive families as active. The table below summarizes all 900 trials per scenario.",
+        "",
+        "| Scenario | False negative | False positive | Valid-plan rate | Median total cost | Mean invalid executions |",
+        "|---|---:|---:|---:|---:|---:|",
+    ]
+    for row in noise_summary:
+        lines.append(
+            f"| {row['scenario']} | {float(row['false_negative_rate']):.2f} | {float(row['false_positive_rate']):.2f} | {float(row['success_rate']):.3f} | {float(row['median_total_cost']):.2f} | {float(row['mean_invalid_executions']):.2f} |"
+        )
+    lines.extend(
+        [
+            "",
+            "Interpretation: ACS is highly sensitive to false negatives because a missed active family can leave an invalid low-cost branch in the planner. False positives are safer in this simulator because the conservative untagged chain remains, but they can raise cost or remove valid options in less forgiving graphs.",
+        ]
+    )
+    path.write_text(text.rstrip() + "\n" + "\n".join(lines) + "\n", encoding="utf-8")
+
+
 def main():
     ensure_dirs()
     active_probabilities = [0.0, 0.10, 0.20, 0.35, 0.50, 0.65]
@@ -244,6 +402,38 @@ def main():
         "success_rate",
     ]
     write_csv(RESULTS / "summary.csv", summary, summary_fields)
+    noise_rows = run_signature_noise_stress()
+    noise_fields = [
+        "scenario",
+        "active_probability",
+        "repeat",
+        "trial",
+        "false_negative_rate",
+        "false_positive_rate",
+        "active_family_count",
+        "success",
+        "total_cost",
+        "path_cost",
+        "expansions",
+        "invalid_executions",
+        "missed_active_families",
+        "false_positive_families",
+    ]
+    write_csv(RESULTS / "signature_noise_stress.csv", noise_rows, noise_fields)
+    noise_summary = summarize_signature_noise(noise_rows)
+    noise_summary_fields = [
+        "scenario",
+        "false_negative_rate",
+        "false_positive_rate",
+        "trials",
+        "success_rate",
+        "median_total_cost",
+        "mean_invalid_executions",
+        "mean_missed_active_families",
+        "mean_false_positive_families",
+    ]
+    write_csv(RESULTS / "signature_noise_summary.csv", noise_summary, noise_summary_fields)
+    write_signature_noise_table(noise_summary)
     config = {
         "active_probabilities": active_probabilities,
         "trials_per_setting": trials_per_setting,
@@ -259,6 +449,7 @@ def main():
     (RESULTS / "config.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
     plot_summary(summary)
     write_report(summary, config)
+    append_signature_noise_report(noise_summary)
     progress_path.write_text(json.dumps({"stage": "complete", "rows": len(rows)}, indent=2), encoding="utf-8")
     print(f"Wrote {RESULTS / 'raw_trials.csv'}")
     print(f"Wrote {RESULTS / 'summary.csv'}")

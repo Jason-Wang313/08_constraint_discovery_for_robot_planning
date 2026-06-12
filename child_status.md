@@ -32,3 +32,16 @@ Recovery steps:
 
 Next:
 - none
+
+Exit code: 0
+End time: 2026-06-11 09:57:59 +01:00
+PDF exists: True
+
+## Submission Hardening v2
+
+- Completed: 2026-06-12 21:42:25 +01:00
+- Terminal decision: workshop-only
+- Canonical PDF target: `C:/Users/wangz/Downloads/08.pdf` (161983 bytes)
+- Key experiment change: added signature-noise stress with false-negative and false-positive diagnostic corruption.
+- Key result: at active probability 0.35, valid-plan rate drops from 1.000 exact to 0.887 at 5% active-family misses, 0.766 at 10%, and 0.584 at 20%.
+- Claim narrowed: ACS requires reliable low-false-negative family diagnostics and remains a proof-of-mechanism abstraction.

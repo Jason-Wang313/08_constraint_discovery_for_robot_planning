@@ -21,8 +21,17 @@
 
 \maketitle
 
+\begin{center}
+{\small Submission-hardening version: v2 (2026-06-12).}
+\end{center}
+
 \begin{abstract}
 Robot planners often encounter constraints only after search has already begun: a geometric stream fails, a feasibility classifier rejects an edge, or execution exposes that a planned manipulation is invalid. This paper argues that for many embodied planning problems the active constraint family is an instance-level property that should be discovered before planning. We introduce Active Constraint Signatures (ACS), a pre-planning certificate that maps scene cues and cheap diagnostic probes to the set of physical constraint families currently binding, then masks entire action families before graph or task-and-motion search. ACS is not a new verifier or repair module; it changes the object passed to the planner from a per-edge feasibility oracle to an active-family certificate. We give a finite-graph condition under which a sound signature preserves completeness for the pruned problem and derive when ACS is cheaper than edge verification or repair. A reproducible robot-task abstraction with eight physical constraint families shows the intended regime: at active-family probability 0.35, ACS has median total cost 22.01 versus 261.01 for blind repair, 65.16 for family-level repair, and 116.79 for a perfect edge verifier. The evidence is intentionally scoped: ACS assumes a known constraint vocabulary and is not yet a physical-robot result.
+A v2 signature-noise stress narrows the claim: at active-family probability
+0.35, the valid-plan rate falls from 1.000 with exact signatures to 0.887 when
+5\% of active families are missed, 0.766 when 10\% are missed, and 0.584 when
+20\% are missed. ACS is therefore a planner-facing representation for reliable
+family diagnostics, not a solution to noisy constraint discovery.
 \end{abstract}
 
 \section{Introduction}
@@ -153,13 +162,33 @@ Figure~\ref{fig:main} and Table~\ref{tab:cost} show the intended tradeoff. When 
 
 At high active probabilities, blind repair becomes extremely costly because low-cost branches are often invalid. ACS approaches the oracle signature plus a fixed probe overhead. Edge verification improves as many invalid edges are pruned early, but it still pays hundreds of edge checks. These results support the mechanism claim: the value of ACS comes from amortizing family-level discovery before search.
 
+\begin{table}[t]
+\centering
+\caption{Signature-noise stress at active probability $0.35$. Columns show the
+probability that an active family is missed by the diagnostic signature. False
+negatives are dangerous because missed active families leave invalid low-cost
+branches in the planner.}
+\label{tab:signature-noise}
+\input{../results/signature_noise_table.tex}
+\end{table}
+
+Table~\ref{tab:signature-noise} stress-tests the exact-signature assumption. A
+2\% active-family miss rate still gives a 0.962 valid-plan rate, but at 5\% the
+rate drops to 0.887, at 10\% to 0.766, and at 20\% to 0.584. The median total
+cost moves only modestly because failed plans pay the configured failure cost
+once, but the validity drop is the important safety signal. The extended CSV
+also includes false-positive rows: in this simulator, 5\% and 10\% false
+positives preserve a 1.000 valid-plan rate because the conservative untagged
+chain remains, though they raise median cost slightly. Less forgiving graphs
+could lose completeness under false positives.
+
 \section{Limitations}
 
-The current evidence is a proof-of-mechanism abstraction, not a hardware demonstration. The constraint vocabulary is known. Diagnostics are exact. Edge labels are supplied by the simulator. The cost model is illustrative. A deployed ACS system would need calibrated probes, perception uncertainty, abstention when signatures are ambiguous, recovery from false positives, and integration with continuous motion feasibility checks. The paper should therefore be read as identifying a planning mechanism and evaluation regime, not as closing the full robot-learning problem.
+The current evidence is a proof-of-mechanism abstraction, not a hardware demonstration. The constraint vocabulary is known. Edge labels are supplied by the simulator. Diagnostics are exact in the main result, and the v2 stress shows that false negatives rapidly undermine plan validity. The cost model is illustrative. A deployed ACS system would need calibrated probes, perception uncertainty, abstention when signatures are ambiguous, recovery from false positives, and integration with continuous motion feasibility checks. The paper should therefore be read as identifying a planning mechanism and evaluation regime, not as closing the full robot-learning problem.
 
 \section{Reproducibility Statement}
 
-The repository contains all source needed to regenerate the evidence: `scripts/run\_experiments.py' runs the simulator, writes raw trials to `results/raw\_trials.csv', aggregates `results/summary.csv', and produces Figure~\ref{fig:main}. The literature sweep is also scripted: `scripts/literature\_pipeline.py' generates the 1000-paper matrix, 300-paper skim, 225-paper deep-read subset, and 100-paper hostile set. No proprietary data or external robot hardware is required.
+The repository contains all source needed to regenerate the evidence: `scripts/run\_experiments.py' runs the simulator, writes raw trials to `results/raw\_trials.csv', aggregates `results/summary.csv', writes the signature-noise stress to `results/signature\_noise\_stress.csv', and produces Figure~\ref{fig:main}. The literature sweep is also scripted: `scripts/literature\_pipeline.py' generates the 1000-paper matrix, 300-paper skim, 225-paper deep-read subset, and 100-paper hostile set. No proprietary data or external robot hardware is required.
 
 \section{Ethics Statement}
 
