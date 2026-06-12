@@ -28,7 +28,12 @@ Status: supported by the formal abstraction and runnable simulator, not yet by p
    - Evidence: Direct proof in the paper; the simulator uses a conservative safe chain to ensure feasibility.
    - Boundary: This is not a completeness claim for unmodeled constraints or noisy discovery.
 
-5. **The hostile prior-work boundary is timing plus certificate granularity.**
+5. **False negatives are the main diagnostic failure mode.**
+   - Claim: Missing active families can destroy the planner-facing value of ACS because invalid low-cost branches remain in the graph.
+   - Evidence: In the v2 signature-noise stress at active probability 0.35, valid-plan rate drops from 1.000 exact to 0.887 at 5% active-family misses, 0.766 at 10%, and 0.584 at 20%.
+   - Boundary: The stress is synthetic and does not replace calibrated real diagnostics.
+
+6. **The hostile prior-work boundary is timing plus certificate granularity.**
    - Claim: The novelty is not "learn constraints" or "check feasibility"; it is pre-search active-set certification that masks action families.
    - Evidence: The hostile set contains TAMP streams, neural feasibility checking, geometric constraints, plan repair, and action-model learning; the proposed boundary is the reusable active-family certificate.
    - Boundary: A paper that only calls a classifier per edge would be incremental.
@@ -47,5 +52,7 @@ Status: supported by the formal abstraction and runnable simulator, not yet by p
 - `src/acs_planning.py`: simulator and planning baselines.
 - `results/raw_trials.csv`: 5400 method-trial records.
 - `results/summary.csv`: aggregate metrics.
+- `results/signature_noise_stress.csv`: v2 noisy-signature stress.
+- `results/signature_noise_summary.csv`: aggregate noisy-signature metrics.
 - `figures/main_results.pdf`: main result plot.
 - `docs/experiment_report.md`: experiment description and numeric table.

@@ -14,6 +14,7 @@ Robot planners should discover an instance's active physical constraint signatur
 - `docs/novelty_decision.md`: selected thesis and novelty boundary.
 - `src/acs_planning.py`: active-constraint-signature simulator and baselines.
 - `scripts/run_experiments.py`: regenerates `results/` and `figures/main_results.*`.
+- `results/signature_noise_stress.csv`: v2 false-negative/false-positive signature stress.
 - `paper/main.tex`: anonymous ICLR 2026-style manuscript.
 
 ## Reproduce
@@ -53,4 +54,12 @@ C:/Users/wangz/Downloads/08.pdf
 
 ## Notes
 
-The simulator is a proof-of-mechanism abstraction, not a physical-robot validation. It assumes a known constraint-family vocabulary and exact diagnostic probes so the planning-side effect of pre-search active-set discovery can be isolated.
+The simulator is a proof-of-mechanism abstraction, not a physical-robot validation. It assumes a known constraint-family vocabulary and exact diagnostic probes in the main result so the planning-side effect of pre-search active-set discovery can be isolated.
+
+## Submission-Hardening v2
+
+The v2 pass adds a signature-noise stress at active-family probability 0.35.
+When active families are missed by the diagnostic signature, valid-plan rate
+drops from 1.000 with exact signatures to 0.887 at a 5% miss rate, 0.766 at 10%,
+and 0.584 at 20%. The supported claim is now explicitly conditional on reliable
+family diagnostics with low false-negative rates.
