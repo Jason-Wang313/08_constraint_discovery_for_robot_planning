@@ -15,12 +15,12 @@ Status: supported by the formal abstraction and runnable simulator, not yet by p
 
 2. **Timing matters.**
    - Claim: Discovering active families before search can be cheaper than discovering them through failed executions.
-   - Evidence: At active probability 0.35, ACS median cost is 22.01 versus 261.01 for blind edge repair and 65.16 for family repair.
+   - Evidence: In the full-scale baseline topology at active probability 0.35, ACS median cost is 21.97 versus 229.86 for blind repair, 61.55 for family repair, 68.14 for selected-path verification, and 120.16 for edge verification.
    - Boundary: ACS pays diagnostic cost even when no constraint is active; at active probability 0.00, blind repair is cheaper.
 
 3. **ACS is different from an edge verifier.**
    - Claim: ACS amortizes one family-level diagnostic across many candidate edges, while a verifier pays per considered edge.
-   - Evidence: At active probability 0.35, edge verification averages 527.0 verifier calls, while ACS uses 8 probes and has lower median total cost.
+   - Evidence: At active probability 0.35 in the full-scale baseline topology, edge verification averages 537.08 verifier calls, while ACS uses 8 probes and has lower median total cost. In the wide-dense topology, edge verification averages 1361.50 calls.
    - Boundary: If verifier calls are extremely cheap or probes are expensive, edge verification may be preferable.
 
 4. **Sound signatures preserve completeness for the masked problem.**
@@ -28,10 +28,10 @@ Status: supported by the formal abstraction and runnable simulator, not yet by p
    - Evidence: Direct proof in the paper; the simulator uses a conservative safe chain to ensure feasibility.
    - Boundary: This is not a completeness claim for unmodeled constraints or noisy discovery.
 
-5. **False negatives are the main diagnostic failure mode.**
-   - Claim: Missing active families can destroy the planner-facing value of ACS because invalid low-cost branches remain in the graph.
-   - Evidence: In the v2 signature-noise stress at active probability 0.35, valid-plan rate drops from 1.000 exact to 0.887 at 5% active-family misses, 0.766 at 10%, and 0.584 at 20%.
-   - Boundary: The stress is synthetic and does not replace calibrated real diagnostics.
+5. **False negatives and missing labels are the main safety failures.**
+   - Claim: Missing active families or missing planner labels can destroy the planner-facing value of direct ACS because invalid low-cost branches remain in the graph.
+   - Evidence: In the full-scale diagnostic-noise stress, direct ACS valid-plan rate is 0.828 at 10% independent false negatives and 0.708 at 10% correlated false negatives; selected-path fallback restores 1.000 in the tested abstraction. With 20% missing planner labels, direct ACS valid-plan rate is 0.412; fallback restores 1.000.
+   - Boundary: The stresses are synthetic and do not replace calibrated real diagnostics or safety-rated hardware verification.
 
 6. **The hostile prior-work boundary is timing plus certificate granularity.**
    - Claim: The novelty is not "learn constraints" or "check feasibility"; it is pre-search active-set certification that masks action families.
@@ -49,10 +49,12 @@ Status: supported by the formal abstraction and runnable simulator, not yet by p
 ## Evidence Artifacts
 
 - `scripts/run_experiments.py`: regenerates all simulator evidence.
+- `scripts/run_full_scale_experiments.py`: regenerates the full-scale operating-envelope evidence.
 - `src/acs_planning.py`: simulator and planning baselines.
 - `results/raw_trials.csv`: 5400 method-trial records.
 - `results/summary.csv`: aggregate metrics.
-- `results/signature_noise_stress.csv`: v2 noisy-signature stress.
-- `results/signature_noise_summary.csv`: aggregate noisy-signature metrics.
+- `results/full_scale/*.csv`: full-scale trial, summary, label, noise, false-positive, and cost-sensitivity artifacts.
 - `figures/main_results.pdf`: main result plot.
+- `paper/figures/full_scale_*.pdf`: full-scale manuscript figures.
 - `docs/experiment_report.md`: experiment description and numeric table.
+- `docs/full_scale_results_summary.md`: final full-scale result summary.

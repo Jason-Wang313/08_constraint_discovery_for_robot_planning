@@ -1,0 +1,7 @@
+{
+  "false_positive_summary_rows": 8,
+  "label_summary_rows": 32,
+  "main_summary_rows": 224,
+  "noise_summary_rows": 26,
+  "stage": "complete"
+}

@@ -32,7 +32,7 @@ Weakness: The title and abstract must not overstate "constraint discovery" as di
 
 ## Attack 6: Diagnostics could be noisy or expensive.
 
-Response: The main theorem assumes sound discovery. The v2 signature-noise stress shows how fragile false negatives are: at active probability 0.35, valid-plan rate falls from 1.000 exact to 0.887 at 5% active-family misses, 0.766 at 10%, and 0.584 at 20%. The paper should frame ACS as requiring low-false-negative diagnostics or abstaining to verification.
+Response: The main theorem assumes sound discovery, and the full-scale stress suite makes the noisy case explicit. At active probability 0.35, direct ACS has valid-plan rate 0.828 at 10% independent false negatives and 0.708 at 10% correlated false negatives. Selected-path fallback restores 1.000 in the tested abstraction.
 
 Weakness: The stress is synthetic and does not solve calibrated real diagnostics.
 
@@ -44,9 +44,9 @@ Weakness: The paper should state this condition instead of claiming universal do
 
 ## Attack 8: ACS may prune valid plans if it has false positives.
 
-Response: The formal claim is conditional on sound and complete active-family detection for modeled families. False positives are outside the proved guarantee and would trade safety for completeness.
+Response: The formal claim is conditional on exact active-family detection for modeled families. The full-scale bridge false-positive construction shows the risk directly: direct ACS has success rate 0.000 when a false-positive family masks a mandatory cut. Abstaining to edge verification restores 1.000.
 
-Weakness: The current paper does not solve calibrated abstention or recovery from mistaken signatures.
+Weakness: The paper uses a simple abstention fallback, not a calibrated real-world uncertainty system.
 
 ## Attack 9: The literature sweep is metadata-driven, not a full manual survey.
 
@@ -58,4 +58,4 @@ Weakness: Some prior-work nuances may be missed; the final paper should cite the
 
 Response: The paper is an embodied planning paper with a learning-adjacent diagnostic front end, but its contribution is algorithmic and conceptual. It may be a better fit for robotics/planning venues or an ICLR workshop unless extended with learned diagnostics on real perceptual data.
 
-Weakness: The final audit should probably judge it as workshop/revise rather than full-submit.
+Weakness: The final paper is full-scale and submission-shaped as a simulation study, but a stronger empirical robotics claim still needs learned or calibrated diagnostics on a real benchmark or robot.

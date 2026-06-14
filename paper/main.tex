@@ -9,9 +9,19 @@
 \usepackage{amsthm}
 \usepackage{url}
 
+\emergencystretch=3em
+
 \newtheorem{theorem}{Theorem}
 \newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
 \newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+
+\newcommand{\ACS}{\textsc{ACS}}
+\newcommand{\Cset}{\mathcal{C}}
+\newcommand{\Ahat}{\hat{A}}
+\newcommand{\Gmask}{G_{\Ahat}}
 
 \title{Active Constraint Signatures: Discovering Binding Constraint Families Before Robot Planning}
 
@@ -21,195 +31,772 @@
 
 \maketitle
 
-\begin{center}
-{\small Submission-hardening version: v2 (2026-06-12).}
-\end{center}
-
 \begin{abstract}
-Robot planners often encounter constraints only after search has already begun: a geometric stream fails, a feasibility classifier rejects an edge, or execution exposes that a planned manipulation is invalid. This paper argues that for many embodied planning problems the active constraint family is an instance-level property that should be discovered before planning. We introduce Active Constraint Signatures (ACS), a pre-planning certificate that maps scene cues and cheap diagnostic probes to the set of physical constraint families currently binding, then masks entire action families before graph or task-and-motion search. ACS is not a new verifier or repair module; it changes the object passed to the planner from a per-edge feasibility oracle to an active-family certificate. We give a finite-graph condition under which a sound signature preserves completeness for the pruned problem and derive when ACS is cheaper than edge verification or repair. A reproducible robot-task abstraction with eight physical constraint families shows the intended regime: at active-family probability 0.35, ACS has median total cost 22.01 versus 261.01 for blind repair, 65.16 for family-level repair, and 116.79 for a perfect edge verifier. The evidence is intentionally scoped: ACS assumes a known constraint vocabulary and is not yet a physical-robot result.
-A v2 signature-noise stress narrows the claim: at active-family probability
-0.35, the valid-plan rate falls from 1.000 with exact signatures to 0.887 when
-5\% of active families are missed, 0.766 when 10\% are missed, and 0.584 when
-20\% are missed. ACS is therefore a planner-facing representation for reliable
-family diagnostics, not a solution to noisy constraint discovery.
+Robot planners often discover physical constraints after search has already begun: a geometric stream fails, a feasibility model rejects an edge, a collision checker is called repeatedly, or execution exposes that a proposed manipulation is invalid. This paper studies a narrower alternative for problems where many candidate actions share a small number of latent physical constraint families. We introduce Active Constraint Signatures (\ACS{}): an instance-level certificate of which modeled constraint families are currently binding, produced before planning and used to mask entire action families before graph or task-and-motion search. \ACS{} is not a new edge verifier, learned precondition, or repair operator. Its contribution is representational and algorithmic: move reliable family-level diagnosis outside the inner planning loop so that one diagnostic result amortizes over many candidate edges. We formalize finite-graph conditions under which exact signatures preserve completeness on the feasible masked graph, derive cost inequalities separating \ACS{} from edge verification and repair, and evaluate the mechanism in a reproducible layered robot-task abstraction with eight physical constraint families. In the baseline topology at active-family probability 0.35, \ACS{} has median total cost 21.97, compared with 229.86 for blind repair, 61.55 for family-level repair, 68.14 for selected-path verification, and 120.16 for a perfect edge verifier. A full-scale operating-envelope study adds graph topology, diagnostic-noise, planner-label, false-positive, and cost-regime stresses. The main boundary is sharp: missed active families and missing edge labels can make direct \ACS{} unsafe, but selected-path fallback verification restores validity in our stress tests at modest added cost. The evidence is intentionally scoped to simulation and formal abstraction; it does not claim hardware validation or open-world discovery of arbitrary new physics.
 \end{abstract}
 
 \section{Introduction}
 
-Robot planning is full of constraints, but the timing of constraint discovery is often treated as incidental. A task-and-motion planner may optimistically branch over symbolic actions and call geometric streams later \citep{garrett2020pddlstream,vu2024coast}; a logic-geometric planner may discover infeasibility through constrained optimization \citep{toussaint2015logic,ly2024rlgp}; a learned feasibility model may reject candidate actions during search \citep{xu2022accelerating,aitbouhsain2023simultaneous}; and a repair system may modify a plan after a symbolic-geometric failure. These mechanisms are powerful, but they share a hidden assumption: discovering which constraint families are binding is cheap enough to do inside the ordinary planning loop.
+Robot planning systems usually have a place where feasibility is checked. In a task-and-motion planner, optimistic symbolic search may propose action skeletons and then call geometric streams or motion planners \citep{garrett2020pddlstream,vu2024coast}. In a logic-geometric planner, a symbolic skeleton may be judged by a constrained nonlinear program \citep{toussaint2015logic,ly2024rlgp}. In learning-augmented planning, a feasibility model may score action candidates during search \citep{xu2022accelerating,aitbouhsain2023simultaneous}. In repair systems, an invalid plan is found, rejected, and patched. These designs differ in machinery, but they often share a timing pattern: constraints are discovered inside the ordinary planning loop.
 
-This assumption is false in many embodied settings. A wet floor invalidates many low-friction navigation shortcuts; a fragile payload invalidates a family of fast carry motions; a human exclusion zone invalidates every path through an occupied region; a sealed container invalidates direct pick actions until a tool or opening action is used. In such cases, the first invalid plan is not an isolated mistake. It is evidence that a whole family of tempting actions should never have entered the search frontier.
+That timing is natural when invalidity is local. If one grasp pose fails while neighboring poses remain plausible, edge-level rejection is the right abstraction. Many embodied tasks, however, contain constraints whose effect is family-level rather than edge-local. A fragile payload invalidates a whole family of fast carry actions. A wet floor invalidates low-friction shortcuts. A narrow passage invalidates loaded wide turns. A human exclusion region invalidates every path through an occupied area. A sealed container invalidates direct pick actions until a tool or opening prerequisite is satisfied. A low-light scene invalidates vision-only localization actions. The first failed edge in such settings is not merely an edge failure; it is evidence that a reusable physical constraint family is active in this instance.
 
-We study the following mechanism: before planning, infer a compact \emph{active constraint signature} for the current instance. The signature lists modeled physical constraint families that are active, together with the diagnostic source that supports them. The planner then masks action families whose labels intersect that signature. This is a small conceptual shift, but it changes the unit of amortization: one diagnostic probe can remove many invalid edges.
+This paper asks what changes if that active family set is discovered before planning. We call the resulting object an \emph{Active Constraint Signature} (\ACS{}): a set of modeled physical constraint families that are currently binding. The planner is given this signature and masks candidate edges whose family labels intersect it. The key difference from ordinary verification is the unit of amortization. An edge verifier pays whenever search considers an edge. A repair method pays after one or more invalid plans have been proposed or executed. \ACS{} pays once per modeled family or diagnostic probe, then removes many invalid edges before they ever enter the frontier.
 
-The contribution is deliberately narrow.
+The claim is deliberately narrow. \ACS{} is valuable when three conditions hold. First, the environment admits a known vocabulary of constraint families that meaningfully groups invalid actions. Second, reliable observations or cheap diagnostic probes can identify the active subset for the current instance. Third, many candidate edges share those active families, so early masking changes the search space enough to offset diagnostic cost. If constraints are rare, probes are expensive, invalid execution is cheap, or edge labels are wrong, \ACS{} may lose. If the signature has false negatives, invalid actions can remain in the graph. If it has false positives, valid plans can be over-pruned. We treat these as first-class experimental questions rather than footnotes.
+
+The paper makes four contributions.
 \begin{itemize}
-    \item We define ACS as an instance-level active-family certificate for robot planning.
-    \item We prove that, under exact discovery for the modeled families, masking preserves completeness with respect to the pruned feasible graph.
-    \item We derive a simple cost condition separating ACS from edge-by-edge verification and repair-after-planning.
-    \item We provide a runnable simulator that compares ACS to blind repair, failure-generalizing repair, a perfect edge verifier, and an oracle signature.
+    \item We define \ACS{} as a planner-facing active-family certificate, separate from per-edge verification and post-failure repair.
+    \item We prove completeness and validity statements for finite masked graphs under exact signatures, and we spell out the failure modes for false negatives and false positives.
+    \item We derive simple cost conditions that expose when \ACS{} should beat edge verification or repair and when it should not.
+    \item We release a reproducible simulator and full-scale operating-envelope study covering topology, noise, planner-label quality, false-positive completeness, and cost sensitivity.
 \end{itemize}
 
-The result is not a claim that ACS discovers arbitrary new physics, replaces motion planning, or has been validated on hardware. Rather, it is a pressure test for the field assumption that constraints can be discovered late without changing the planning problem.
+The result is not a claim that active constraint discovery is new in every sense. Robotics has long studied constraints, feasibility, abstractions, and repairs. The novelty boundary is the planner-facing object and timing: a compact active-set certificate is produced before search and applied at family granularity.
 
 \section{Related Work and Novelty Boundary}
 
 \paragraph{Task and motion planning.}
-Classic task-and-motion planning integrates symbolic search with geometric reasoning \citep{wolfe2010combined,kaelbling2011hierarchical,lagriffoul2014efficiently}. Later systems made this integration incremental, factored, stream-based, or optimization-based \citep{dantam2016incremental,dantam2018incremental,garrett2017ffrob,garrett2018sampling,garrett2020pddlstream,toussaint2015logic}. Recent work adds reachability guidance, stream constraints, temporal specifications, and long-horizon construction or manipulation structure \citep{takano2021continuous,hartmann2022long,ly2024rlgp,vu2024coast}. ACS does not dispute this line: it assumes a downstream planner and asks whether the active constraint family should be inferred before that planner expands its search space.
+Task-and-motion planning (TAMP) integrates symbolic action choices with continuous feasibility reasoning. Early mobile manipulation systems already combined task and motion planning \citep{wolfe2010combined,kaelbling2011hierarchical}, while later work improved integration through geometric constraints \citep{lagriffoul2014efficiently}, incremental constraint-based planning \citep{dantam2016incremental,dantam2018incremental}, symbolic-geometric factoring \citep{garrett2017ffrob,garrett2018sampling}, stream-based optimistic planning \citep{garrett2020pddlstream}, and optimization-based logic-geometric programming \citep{toussaint2015logic}. Recent systems add reachability guidance, stream constraints, temporal specifications, and long-horizon structure \citep{takano2021continuous,hartmann2022long,ly2024rlgp,vu2024coast}. \ACS{} assumes such planners may exist downstream. Its question is not how to solve all geometric feasibility, but whether a family-level active constraint certificate should be computed before the downstream planner expands candidates.
 
-\paragraph{Learning constraints and feasibility.}
-Learning has been used to induce skill models, geometric constraints, action abstractions, and feasibility checks for planning \citep{wang2021compositional,curtis2022discovering,ren2022learning,xu2022accelerating,aitbouhsain2023simultaneous}. These methods make ``learning constraints'' too broad to be a novel claim. The boundary here is more specific: ACS produces one active-family signature per instance, not a score or rejection for each candidate edge.
+\paragraph{Learning constraints, skills, and feasibility.}
+Learning has been used to build compositional skill models, discover abstractions, infer geometric constraints, and accelerate feasibility checks for TAMP \citep{wang2021compositional,curtis2022discovering,ren2022learning,xu2022accelerating,aitbouhsain2023simultaneous}. These methods make any broad claim of ``learning constraints for planning'' far too large. \ACS{} does not claim a new general learning objective. The learning or diagnostic module is abstracted as a producer of an active family set. The planner-side claim is about how that set is represented, when it is produced, and how it is amortized.
 
-\paragraph{Language-guided and specification-guided planning.}
-Recent work translates task constraints from language or uses large vision-language models to guide long-horizon planning \citep{chen2024autotamp,guo2025castl,yang2025guiding}. ACS is complementary: the active signature may be produced by language, perception, or robot probes, but its planner-facing role is to certify which constraint families are binding before search.
+\paragraph{Language and specification guided planning.}
+Recent systems use language models, vision-language models, or specification translation to guide robot plans and constraints \citep{chen2024autotamp,guo2025castl,yang2025guiding}. These approaches can be complementary sources for a signature: a language model may identify that a human exclusion constraint is active, or a translated specification may add a family to the active set. \ACS{} does not depend on language; it defines the artifact passed to the planner after any perception, language, or probing stack has made a family-level decision.
+
+\paragraph{Verification and repair.}
+Edge verification and lazy checking are powerful because they avoid committing to a full feasibility model before search. Repair methods are powerful because failure observations contain information. \ACS{} is not a replacement for either. In fact, our strongest robust variant combines \ACS{} with selected-path fallback verification. The distinction is that \ACS{} first tries to remove whole families before search, and only then asks verification to catch residual misses or bad labels.
+
+\paragraph{Novelty boundary.}
+The novelty boundary is therefore specific. We do not claim to discover arbitrary new constraints, learn universal operator models, replace motion planning, or prove safety for physical robots. We claim that, in a modeled family-vocabulary setting, treating the active family set as a pre-planning certificate changes the economics of planning. The experiments are designed to show both the positive regime and the hostile regimes.
 
 \section{Problem Setting}
 
-Let $G=(V,E)$ be a finite directed planning graph for a robot task abstraction. An edge $e \in E$ is a macro-action, stream call, or skill invocation. Let $\mathcal{C}=\{c_1,\dots,c_K\}$ be a known vocabulary of physical constraint families. Each edge has a label set $\ell(e)\subseteq\mathcal{C}$ containing the families that would invalidate that edge if active. A problem instance has an unknown active set $A\subseteq\mathcal{C}$. Edge $e$ is valid iff $\ell(e)\cap A=\emptyset$.
-
-This abstraction intentionally covers only constraints that can be grouped into reusable families. It is suitable for constraints such as fragile payloads, narrow passages, human exclusion regions, terrain restrictions, payload limits, tool requirements, or perception-mode restrictions. It is not an open-world model of all possible physical invalidity.
-
-\begin{definition}[Active Constraint Signature]
-An Active Constraint Signature for an instance is a set $\hat{A}\subseteq\mathcal{C}$ returned before planning by a diagnostic procedure $D$. The planner searches the masked graph
+Let $G=(V,E)$ be a finite directed planning graph. Vertices are abstract task states. An edge $e\in E$ is a macro-action, stream call, skill invocation, or local motion/planning choice. Let $\Cset=\{c_1,\ldots,c_K\}$ be a known vocabulary of physical constraint families. Each edge has a label set $\ell(e)\subseteq \Cset$. A problem instance has an active set $A\subseteq \Cset$. Under the modeled abstraction, an edge is valid exactly when
 \[
-G_{\hat{A}} = (V,\{e\in E:\ell(e)\cap \hat{A}=\emptyset\}).
+    \ell(e)\cap A = \emptyset.
+\]
+The assumption is not that every physical failure in the world can be reduced to this form. Rather, the paper studies the part of a planning problem where reusable physical constraint families are meaningful. Examples include payload fragility, terrain restrictions, constrained spaces, human exclusion zones, thermal contact limits, payload limits, tool prerequisites, and perception-mode restrictions.
+
+\begin{definition}[Active constraint signature]
+An Active Constraint Signature is a set $\Ahat \subseteq \Cset$ returned before planning by a diagnostic procedure. The downstream planner searches the masked graph
+\[
+    \Gmask = (V,\{e\in E: \ell(e)\cap \Ahat=\emptyset\}).
 \]
 \end{definition}
 
-In the ideal case, $D$ uses scene observations and bounded robot probes to return $\hat{A}=A$. In practice, $D$ could be a classifier, a ruleset, a set of physical tests, or a hybrid. This paper studies the planner-side consequences of making $\hat{A}$ explicit.
+\begin{assumption}[Modeled family vocabulary]
+The vocabulary $\Cset$ is fixed for an experiment or deployment. Edge labels $\ell(e)$ state which modeled families would invalidate an edge if active. Constraints outside $\Cset$ are outside the theorem and must be handled by other monitors, verifiers, or recovery systems.
+\end{assumption}
+
+\begin{assumption}[Diagnostic timing]
+The diagnostic procedure runs before downstream search and returns $\Ahat$. It may use perception, task metadata, rules, language-derived specifications, or active robot probes. This paper evaluates the planner-side consequences of $\Ahat$ rather than a particular perception model.
+\end{assumption}
+
+Two errors matter. A false negative is a family in $A\setminus \Ahat$, meaning an active family was missed and invalid edges may remain available. A false positive is a family in $\Ahat\setminus A$, meaning inactive labels may be masked and valid plans may be removed. The experiments separate diagnostic noise, planner-label noise, and false-positive graph-disconnection stress because they have different consequences.
 
 \section{Method: Planning With Active Constraint Signatures}
 
-ACS has three steps.
-\begin{enumerate}
-    \item \textbf{Diagnose.} Query scene cues and cheap probes for every modeled constraint family, producing evidence such as ``payload is fragile'', ``route crosses wet floor'', or ``container is sealed''.
-    \item \textbf{Certify.} Convert evidence into a signature $\hat{A}$ and attach the family-level mask it induces.
-    \item \textbf{Plan.} Run the downstream planner on $G_{\hat{A}}$, so that entire action families are removed before expansion.
-\end{enumerate}
+\ACS{} has three phases.
 
-This differs from a verifier because the diagnostic is paid per family or per instance, not per candidate edge. It differs from repair because no invalid execution is needed to expose the first member of a family. It differs from ordinary precondition learning because the learned object is not only an operator schema; it is a problem-instance active-set certificate.
+\paragraph{Diagnose.}
+Before planning, the robot obtains evidence for each modeled family. Evidence can be passive, such as scene labels or task metadata, or active, such as a small probe for friction, container state, payload compliance, human-zone occupancy, or lighting. The output is not a per-edge score. It is an instance-level active set $\Ahat$.
 
-\subsection{Formal Guarantee}
+\paragraph{Certify.}
+The diagnostic evidence is converted into a family-level certificate. In a conservative implementation, a family may be added only when evidence exceeds a reliability threshold; ambiguous families can trigger abstention or fallback verification. The present simulator uses exact signatures for the main mechanism test and explicit noise models for stress tests.
+
+\paragraph{Plan.}
+The planner removes all edges whose labels intersect $\Ahat$ and searches the masked graph. If a selected-path verifier is used, the final path is checked before execution. A failure on the selected path adds the violated family to the working mask and blacklists the rejected edge, then replans. This fallback is intentionally weaker than checking every expanded edge: it verifies only the current candidate path.
+
+\subsection{Contrasting Planner Interfaces}
+
+The same physical information can enter a planner through different interfaces.
+
+\paragraph{Per-edge verifier.}
+An edge verifier answers whether a particular edge is feasible in the current instance. It can be perfect and still expensive because search may ask hundreds or thousands of questions. It is local by design.
+
+\paragraph{Blind repair.}
+Blind repair plans without family knowledge, observes the first invalid edge, blacklists that edge, and replans. It does not generalize the failure to other edges that share the same physical family.
+
+\paragraph{Family repair.}
+Family repair generalizes after observing a failed edge: once it sees that a fragile-payload edge failed, it masks the fragile-payload family. It uses the right granularity, but only after at least one failed candidate exposes the family.
+
+\paragraph{\ACS{}.}
+\ACS{} uses the family granularity before search. It can lose when no active constraints exist because it paid for probes unnecessarily. It wins when those probes prevent many failed executions or verifier calls.
+
+\paragraph{\ACS{} with selected-path fallback.}
+This hybrid keeps the pre-search family mask but checks the final selected path before execution. It catches false negatives and missing planner labels in the tested abstraction, at the price of a small number of path-edge checks and occasional replanning.
+
+\section{Formal Analysis}
+
+\subsection{Completeness Under Exact Signatures}
 
 \begin{theorem}[Sound-mask completeness]
-Assume $G$ is finite, the downstream planner is complete on any subgraph of $G$, and ACS returns the exact modeled active set $\hat{A}=A$. If there exists a path from start to goal using only valid edges, planning on $G_{\hat{A}}$ returns such a path. Every returned path is valid with respect to the modeled active constraints.
+Assume $G$ is finite, the downstream planner is complete on every finite subgraph of $G$, and the signature is exact for the modeled vocabulary: $\Ahat=A$. If there exists a start-to-goal path in $G$ using only modeled-valid edges, then planning on $\Gmask$ returns a modeled-valid path. Every returned path in $\Gmask$ is modeled-valid.
 \end{theorem}
 
 \begin{proof}
-By construction, $G_{\hat{A}}$ contains exactly those edges $e$ for which $\ell(e)\cap\hat{A}=\emptyset$. Since $\hat{A}=A$, this is exactly the set of modeled-valid edges. Any valid path in $G$ is therefore present in $G_{\hat{A}}$, and every path in $G_{\hat{A}}$ is valid. Completeness of the downstream planner on the finite subgraph gives existence of a returned path whenever one exists.
+By definition, $\Gmask$ contains exactly those edges $e$ such that $\ell(e)\cap\Ahat=\emptyset$. Since $\Ahat=A$, this is exactly the set of modeled-valid edges. Any modeled-valid path in $G$ is therefore present in $\Gmask$, and every path in $\Gmask$ is modeled-valid. Completeness of the downstream planner on the finite subgraph gives a returned path whenever such a path exists.
 \end{proof}
 
-The theorem is conditional. False negatives can allow invalid edges into search; false positives can remove valid plans. ACS therefore needs abstention, verification, or recovery in noisy deployments. The present paper proves the clean planner-side property and evaluates the cost tradeoff in the exact-signature setting.
+\begin{corollary}[Oracle gap]
+If the diagnostic procedure is exact but has nonzero cost, \ACS{} and an oracle signature search the same graph and differ only by diagnostic cost and optional fallback checks.
+\end{corollary}
 
-\subsection{Cost Condition}
+This corollary is visible in the experiments. At active probability 0.35 in the baseline topology, \ACS{} has median cost 21.97 and the oracle signature has median cost 17.57. The gap is the fixed diagnostic cost of eight family probes.
 
-Let $K$ be the number of modeled families, $c_p$ the cost of a diagnostic probe, $M$ the number of candidate edges examined by an edge verifier, and $c_v$ the cost of one verifier call. Ignoring shared downstream search cost, ACS is cheaper than edge verification when
+\subsection{False Negatives and False Positives}
+
+\begin{proposition}[False-negative unsoundness]
+If $\Ahat\subset A$ and there exists an edge $e$ on a returned path with $\ell(e)\cap (A\setminus\Ahat)\neq \emptyset$, then the path can be invalid even though it is feasible in the masked graph.
+\end{proposition}
+
+\begin{proof}
+The missed family is not in $\Ahat$, so masking does not remove all edges carrying it. If the downstream planner selects such an edge and the family is truly active, the edge violates the modeled validity condition.
+\end{proof}
+
+\begin{proposition}[False-positive incompleteness]
+If $A\subset \Ahat$, then $\Gmask$ may remove modeled-valid edges. There exist graphs in which a false-positive family removes every start-to-goal path even though a valid path exists in $G$.
+\end{proposition}
+
+\begin{proof}
+Construct a graph with a single layer cut that every start-to-goal path must cross. Label every edge in that cut with a family $c$ that is not active. If $c\in\Ahat$ as a false positive, all cut edges are removed. The masked graph is disconnected although the original graph contains valid paths.
+\end{proof}
+
+The false-positive stress experiment implements exactly this construction using an ordinary family label as a bridge label on a mandatory layer cut. Direct \ACS{} fails on every bridge false-positive trial, while an abstention fallback that switches to edge verification after disconnection succeeds.
+
+\subsection{Cost Conditions}
+
+Let $K=|\Cset|$, $c_p$ be the cost of one diagnostic probe, $M$ the number of edge verifier calls made during search, and $c_v$ the cost per verifier call. Ignoring shared path cost and shared expansion cost, \ACS{} is cheaper than full edge verification when
 \[
-Kc_p < Mc_v.
+    K c_p < M c_v.
 \]
-For repair-after-planning, let $q$ be the number of invalid executions before a successful plan and $c_f$ their cost. ACS beats repair when
+This inequality is intentionally simple: it says that family diagnostics should be preferred only when the search would otherwise ask many edge-level questions.
+
+For repair, let $q$ be the number of invalid executions or rejected selected paths before success, $c_f$ the invalid-execution cost, and $\Delta_{\mathrm{search}}$ the difference in downstream planning computation between \ACS{} and repair. \ACS{} beats repair when
 \[
-Kc_p + \Delta_{\mathrm{search}} < q c_f,
+    Kc_p + \Delta_{\mathrm{search}} < q c_f.
 \]
-where $\Delta_{\mathrm{search}}$ is the difference in planning computation after masking versus after repair. These inequalities are not universal dominance claims; they identify the regime where active-family discovery changes the economics of planning.
+Family repair reduces $q$ relative to blind repair because it generalizes a failure to a family after the first observation. \ACS{} reduces it further by moving that family information before search.
 
-\section{Experiments}
+\begin{proposition}[No universal dominance]
+For any fixed graph family, there are cost settings under which blind or family repair beats \ACS{}: set $c_p$ large and $c_f$ small. There are also settings under which \ACS{} beats repair: set $c_f$ large and let active families invalidate many low-cost candidate paths.
+\end{proposition}
 
-\subsection{Robot-Task Abstraction}
+The cost-sensitivity grid confirms the proposition empirically. Across 180 probe, invalid-execution, and verifier-cost combinations at active probability 0.35, \ACS{} is best or tied among non-oracle methods in 157 cells, family repair is best in 18, and edge verification is best in 5. When invalid execution costs only 1.0 and probe cost is 4.0, family repair beats \ACS{} by 19.7 median cost units. When invalid execution is 18.0 or 80.0, \ACS{} is best or tied across the tested probe costs.
 
-We built a deterministic simulator in which a layered graph represents a robot task plan. Edges are macro-actions such as direct navigation, grasp, carry, inspect, and tool-use choices. Each edge may carry one or two labels from eight physical constraint families: fragile payload, wet floor, narrow passage, human exclusion, thermal contact, payload limit, sealed container, and low-light perception. A task instance samples an active subset. If a family is active, every edge carrying that label is invalid. A conservative safe chain guarantees that a feasible plan exists, but it is more expensive than many tempting invalid branches.
+\section{Experimental Protocol}
 
-\subsection{Baselines}
+\subsection{Layered Robot-Task Abstraction}
 
-We compare five methods.
+The simulator is a finite layered graph. Each layer corresponds to a task stage, and each edge corresponds to a macro-action such as navigate, carry, grasp, inspect, use a tool, or localize. Edge costs represent nominal path or action costs. Low-cost tempting edges are often tagged with one or two physical families; conservative safe-chain edges are untagged and more expensive. A problem instance samples an active family set. An edge is physically invalid exactly when one of its tags is active.
+
+The eight families are:
+\begin{center}
+\footnotesize
+\begin{tabular}{p{0.17\linewidth}p{0.23\linewidth}p{0.50\linewidth}}
+\toprule
+Family & Code name & Modeled effect \\
+\midrule
+Fragile payload & fragile payload & Fast or high-vibration carry actions are illegal. \\
+Wet floor & wet floor & Low-friction terrain invalidates direct wheeled shortcuts. \\
+Narrow passage & narrow passage & Wide loaded turns and unfolded-arm motions collide. \\
+Human exclusion & human exclusion & Nominal routes through occupied regions are disallowed. \\
+Thermal contact & thermal contact & Unprotected grasps are unsafe near hot objects. \\
+Payload limit & payload limit & Single-arm lifting actions exceed torque limits. \\
+Sealed container & sealed container & Direct picks require an opening or tool prerequisite. \\
+Low light & low-light perception & Vision-only localizations are unreliable. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The abstraction is designed to isolate the mechanism. It is not a physics engine. It does not model continuous robot dynamics, perception pipelines, or hardware. Its value is that the exact active family set, edge labels, and invalidity outcomes are known, so the consequences of changing the planner interface can be measured precisely.
+
+\subsection{Methods}
+
+We compare seven main methods.
 \begin{itemize}
-    \item \textbf{Blind repair}: plan ignoring constraints, execute, blacklist only the failed edge, and replan.
-    \item \textbf{Family repair}: after a failed edge, infer the violated family and blacklist that family.
-    \item \textbf{Edge verifier}: call a perfect feasibility verifier on every candidate edge considered during Dijkstra search.
-    \item \textbf{ACS}: pay one diagnostic probe per family, mask active families, then plan.
-    \item \textbf{Oracle signature}: plan with the true active set and no diagnostic cost.
+    \item \textbf{Blind repair}: plan without constraints, execute, blacklist only the first invalid edge, and replan.
+    \item \textbf{Family repair}: plan without constraints, execute, infer the violated family from a failed edge, mask that family, and replan.
+    \item \textbf{Selected-path verifier}: plan without constraints, verify only the selected path before execution, blacklist the first rejected edge, and replan.
+    \item \textbf{Edge verifier}: call a perfect verifier on every candidate edge considered by Dijkstra search.
+    \item \textbf{\ACS{}}: probe each modeled family, mask the exact active set, and plan.
+    \item \textbf{\ACS{} with path check}: exact \ACS{} plus selected-path verification before execution.
+    \item \textbf{Oracle signature}: plan with the true active family set and no probe cost.
 \end{itemize}
 
-Each setting uses 180 random tasks. The cost model is transparent in the released code: expansion cost 0.03, verifier call cost 0.18, probe cost 0.55, invalid execution cost 18.0, and failure cost 250.0. These values are not calibrated to a particular robot; they instantiate the regime where invalid execution and repeated feasibility calls are meaningfully costly.
+The selected-path verifier is an important middle point. It avoids invalid execution but can still replan many times because it learns from one selected path at a time. It is cheaper than full edge verification when invalid candidates are sparse along chosen paths, but it is less global than \ACS{}.
+
+\subsection{Cost Model and Metrics}
+
+The default cost model is:
+\[
+    C = C_{\mathrm{path}} + 0.03N_{\mathrm{exp}} + 0.18N_{\mathrm{verify}} + 0.55N_{\mathrm{probe}} + 18.0N_{\mathrm{invalid}} + 250.0\mathbb{I}[\mathrm{failure}].
+\]
+The values are illustrative rather than robot-calibrated. They encode a regime where invalid execution is expensive, feasibility calls matter, and a small family probe is cheaper than repeated edge-level checking. We therefore report cost sensitivity rather than asking the reader to accept one fixed calibration.
+
+Primary metrics are median total cost, success or valid-plan rate, mean invalid executions, mean verifier calls, mean expansions, and attempts. Median cost is emphasized because repair methods have heavy-tailed costs when active constraints repeatedly invalidate tempting branches.
+
+\subsection{Full-Scale Suites}
+
+The full-scale pass contains five suites.
+
+\paragraph{Main scaling.}
+Active-family probability ranges from 0.0 to 0.80. Four topologies are tested: low-label-density, baseline, wide-dense, and deep-sparse. Trial counts are 56 to 72 per probability/profile pair, producing 12,544 streamed method rows. The suite tests whether the original mechanism survives graph-size and topology changes.
+
+\paragraph{Diagnostic-noise stress.}
+At active probability 0.35, the signature is corrupted by independent false negatives, false positives, mixed noise, correlated false negatives, and family-biased misses. Direct noisy \ACS{} is compared with \ACS{} plus selected-path fallback verification.
+
+\paragraph{Planner-label quality.}
+The diagnostic signature is exact, but the planner's edge labels are corrupted. We test missing tags, extra tags, swapped tags, coarse-pair vocabularies, and sparse coverage. This distinguishes missing active-family diagnosis from missing edge-family annotation.
+
+\paragraph{False-positive completeness stress.}
+Ordinary false positives are compared with a bridge false-positive construction in which an inactive family label is added to a mandatory layer cut. This suite tests whether over-conservative signatures can disconnect the graph.
+
+\paragraph{Cost sensitivity.}
+Behavior components are recomputed over a grid of probe cost, invalid-execution cost, and verifier cost. The grid is used to identify regimes where \ACS{}, family repair, or edge verification is best among non-oracle methods.
+
+All full-scale scripts write CSV rows incrementally. Trial objects are not retained beyond the summaries needed for plots and tables. The complete result set is in \texttt{results/full\_scale/}.
+
+\section{Results}
+
+\subsection{Main Scaling}
+
+Table~\ref{tab:main-cost} and Figure~\ref{fig:main-scaling} show the main result in the baseline topology. With no active constraints, \ACS{} pays for probes and loses: median cost 20.07 versus 15.67 for blind repair, family repair, and the oracle. This is the expected negative control. At active probability 0.10, the median of blind and family repair remains low because many trials still have no active or path-relevant constraints, but the mean invalid-execution count already differs: blind repair averages 2.11 invalid executions and family repair 0.58.
+
+At active probability 0.35, the mechanism becomes clear. \ACS{} has median cost 21.97, while blind repair reaches 229.86, family repair 61.55, selected-path verification 68.14, and edge verification 120.16. The edge verifier avoids invalid executions but averages 537.08 edge checks. Blind repair succeeds, but it averages 21.38 invalid executions because it blacklists one failed edge at a time. Family repair uses the right granularity after failure and is therefore much better, but it still pays for the first observed failure from each family.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Baseline topology median total cost. Lower is better. \ACS{} is expected to lose when no constraints are active because it pays probe cost; it wins once active families invalidate many tempting branches.}
+\label{tab:main-cost}
+\input{../results/full_scale/full_scale_main_cost_table.tex}
+\end{table}
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=\linewidth]{../figures/main_results.pdf}
-    \caption{ACS pays a fixed diagnostic cost and therefore loses when no constraints are active. Once active families create repeated invalid branches, ACS avoids invalid executions and hundreds of verifier calls.}
-    \label{fig:main}
+    \includegraphics[width=\linewidth]{figures/full_scale_main_scaling.pdf}
+    \caption{Full-scale main sweep. Top left: median total cost in the baseline topology. Top right: invalid executions. Bottom left: verifier calls. Bottom right: \ACS{} cost across topologies at active probability 0.35.}
+    \label{fig:main-scaling}
 \end{figure}
 
-\begin{table}[t]
-\centering
-\caption{Median total cost. Lower is better.}
-\label{tab:cost}
-\begin{tabular}{lrrrrr}
-\toprule
-Active prob. & Blind repair & Family repair & Edge verifier & ACS & Oracle \\
-\midrule
-0.00 & 15.76 & 15.76 & 128.74 & 20.16 & 15.76 \\
-0.20 & 81.93 & 39.07 & 123.76 & 21.05 & 16.65 \\
-0.35 & 261.01 & 65.16 & 116.79 & 22.01 & 17.61 \\
-0.50 & 653.75 & 97.35 & 112.39 & 24.01 & 19.61 \\
-0.65 & 1447.38 & 134.94 & 97.24 & 31.51 & 27.11 \\
-\bottomrule
-\end{tabular}
-\end{table}
+At higher active probabilities, blind repair becomes extremely expensive: median cost 1354.15 at probability 0.65 and 1786.15 at probability 0.80. Family repair grows more slowly but still reaches 159.58 at probability 0.80. \ACS{} rises because the conservative safe chain becomes more likely to be selected as tempting branches are masked, but the increase is modest: 31.03 at probability 0.65 and 37.87 at probability 0.80. The oracle remains lower by the fixed diagnostic cost.
 
-\subsection{Results}
+\subsection{Topology Effects}
 
-Figure~\ref{fig:main} and Table~\ref{tab:cost} show the intended tradeoff. When active probability is 0.00, ACS has no invalid branches to avoid and pays 4.4 extra diagnostic cost relative to blind repair. This is the expected failure mode. At active probability 0.35, ACS has median total cost 22.01, while blind repair reaches 261.01 because it repeatedly discovers one invalid edge at a time. Family repair is much stronger, but still pays for the first failed execution of each discovered family, reaching 65.16. The perfect edge verifier avoids invalid executions but averages 527 verifier calls at active probability 0.35 and has median cost 116.79.
+The topology sweep tests whether the result is an artifact of one graph size. At active probability 0.35, \ACS{} has median cost 21.97 in the baseline topology, 24.06 in the wide-dense topology, 26.26 in the low-label-density topology, and 34.82 in the deep-sparse topology. The absolute cost changes because path lengths and safe-chain structure change. The relative story remains: in the wide-dense topology, \ACS{} costs 24.06 versus 418.47 for blind repair, 70.49 for family repair, and 267.41 for edge verification. The edge verifier averages 1361.50 checks there.
 
-At high active probabilities, blind repair becomes extremely costly because low-cost branches are often invalid. ACS approaches the oracle signature plus a fixed probe overhead. Edge verification improves as many invalid edges are pruned early, but it still pays hundreds of edge checks. These results support the mechanism claim: the value of ACS comes from amortizing family-level discovery before search.
+The deep-sparse topology is a harder case for \ACS{} because paths are longer and there are fewer alternatives per layer. \ACS{} still beats blind repair and edge verification at probability 0.35, but the gap to family repair narrows: 34.82 versus 97.57. This is important because it shows the mechanism is not magic. \ACS{} is strongest when active families remove many shared low-cost shortcuts. It is less dramatic when graph structure gives fewer repeated opportunities for amortization.
+
+\subsection{Selected-Path Verification}
+
+Selected-path verification is a useful baseline because it checks only the plan that the planner intends to execute. In the baseline topology at active probability 0.35, selected-path verification has median cost 68.14, lower than full edge verification's 120.16 but higher than \ACS{}'s 21.97. It avoids invalid executions, but it averages 112.21 edge checks and may replan many times. At high active probabilities it becomes expensive: 288.30 at probability 0.65 and 377.91 at probability 0.80. This shows that checking the selected path is a strong safety addition, but it does not replace pre-search family masking when many candidate paths share the same hidden active constraints.
+
+\subsection{Diagnostic Noise}
+
+Table~\ref{tab:noise} and Figure~\ref{fig:noise} stress the exact-signature assumption. Direct noisy \ACS{} degrades under false negatives. At a 10\% independent false-negative rate, valid-plan rate is 0.828. At 20\%, it is 0.651. Correlated misses are worse: a 10\% correlated miss event gives valid-plan rate 0.708. The biased payload-miss condition, where payload-related families have higher miss probability, gives valid-plan rate 0.802.
+
+Selected-path fallback verification restores validity in every tested diagnostic-noise scenario, with median costs between 23.99 and 25.49. The cost increase is small because the verifier checks only the selected path and then generalizes any detected active family. This does not mean fallback verification solves all safety problems. It means that in the modeled graph, false-negative signatures can be made robust by checking the path before execution and updating the family mask.
 
 \begin{table}[t]
 \centering
-\caption{Signature-noise stress at active probability $0.35$. Columns show the
-probability that an active family is missed by the diagnostic signature. False
-negatives are dangerous because missed active families leave invalid low-cost
-branches in the planner.}
-\label{tab:signature-noise}
-\input{../results/signature_noise_table.tex}
+\small
+\caption{Diagnostic-noise stress at active probability 0.35. Direct \ACS{} is sensitive to missed active families; selected-path fallback restores validity in this abstraction.}
+\label{tab:noise}
+\input{../results/full_scale/full_scale_noise_table.tex}
 \end{table}
 
-Table~\ref{tab:signature-noise} stress-tests the exact-signature assumption. A
-2\% active-family miss rate still gives a 0.962 valid-plan rate, but at 5\% the
-rate drops to 0.887, at 10\% to 0.766, and at 20\% to 0.584. The median total
-cost moves only modestly because failed plans pay the configured failure cost
-once, but the validity drop is the important safety signal. The extended CSV
-also includes false-positive rows: in this simulator, 5\% and 10\% false
-positives preserve a 1.000 valid-plan rate because the conservative untagged
-chain remains, though they raise median cost slightly. Less forgiving graphs
-could lose completeness under false positives.
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/full_scale_signature_noise.pdf}
+    \caption{Signature-noise stress. False negatives reduce direct \ACS{} validity; path fallback verification catches missed active families before execution.}
+    \label{fig:noise}
+\end{figure}
+
+False positives alone are safer in the default simulator because the conservative untagged chain remains. A 20\% false-positive rate preserves valid-plan rate 1.000 for direct \ACS{} but raises median cost to 23.89. This should not be over-interpreted. The bridge stress below shows that false positives can break completeness when graph slack is absent.
+
+\subsection{Planner-Label Quality}
+
+Diagnostic correctness is not enough if edge-family labels are wrong. Table~\ref{tab:labels} and Figure~\ref{fig:labels} hold the signature exact and corrupt the labels used for masking. Missing labels are dangerous because an active family can be correctly discovered but fail to remove an edge whose label omitted that family. With 10\% missing labels, direct \ACS{} has valid-plan rate 0.581. With 20\% missing labels, it falls to 0.412. With sparse 30\% coverage removal, it falls to 0.237.
+
+The path fallback variant restores validity to 1.000 in all missing-label, sparse-coverage, and swap-label stress tests. The reason is operational: it checks the selected path against true feasibility before execution, blacklists the rejected edge, adds the active violated family, and replans. When a planner label is missing, adding the family alone may not remove the bad edge; blacklisting the concrete rejected edge is necessary. This is a practical lesson for real systems that combine family-level masks with imperfect semantic annotations.
+
+Extra labels and coarse labels are different. They are mostly safety-preserving but can remove useful valid shortcuts. Coarse-pair labels preserve validity but raise direct \ACS{} median cost from 22.58 to 27.71. Extra labels at 20\% preserve valid-plan rate 0.981; the residual failures occur when over-masking removes all available paths under the direct planner. This again points to an abstention mechanism when the mask disconnects the graph.
+
+\begin{table}[t]
+\centering
+\small
+\caption{Planner-label stress at active probability 0.35 with exact diagnostic signatures. Missing labels create invalid plans for direct \ACS{}; selected-path fallback restores validity by checking and blacklisting rejected edges.}
+\label{tab:labels}
+\input{../results/full_scale/full_scale_label_table.tex}
+\end{table}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/full_scale_label_quality.pdf}
+    \caption{Planner-label quality. Missing and sparse labels are dangerous for direct family masking. Path fallback restores validity in the tested abstraction at moderate extra verifier cost.}
+    \label{fig:labels}
+\end{figure}
+
+\subsection{False-Positive Completeness Stress}
+
+Table~\ref{tab:false-positive} and Figure~\ref{fig:false-positive} isolate the false-positive completeness boundary. Ordinary false positives do not hurt validity in the default graph because alternative paths remain. Direct \ACS{} and the abstention variant both succeed with median cost 21.07. Edge verification succeeds but costs 126.25 because it still checks hundreds of edges.
+
+The bridge false-positive construction is intentionally adversarial. An inactive family label is added to every edge in a mandatory layer cut, then the signature falsely marks that family active. Direct \ACS{} masks the cut and succeeds in 0.000 of trials. Its median cost is 255.94 because it pays probe and failure costs. The abstention variant detects that the mask disconnected the graph and switches to edge verification; it succeeds in 1.000 of trials with median cost 132.98. This is slightly higher than edge verification alone because it first pays probes and attempts the disconnected mask.
+
+\begin{table}[t]
+\centering
+\small
+\caption{False-positive completeness stress. A bridge false positive can disconnect the masked graph; abstaining to edge verification restores validity at verifier-like cost.}
+\label{tab:false-positive}
+\input{../results/full_scale/full_scale_false_positive_table.tex}
+\end{table}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{figures/full_scale_false_positive_stress.pdf}
+    \caption{False-positive stress. Ordinary false positives are benign in the default graph; bridge false positives create a clean completeness failure for direct \ACS{}.}
+    \label{fig:false-positive}
+\end{figure}
+
+\subsection{Cost Sensitivity}
+
+Figure~\ref{fig:cost} recomputes costs over a probe-cost and invalid-execution-cost grid with verifier cost fixed at 0.18. Gray cells indicate ties where \ACS{} is the best non-oracle method. Red cells indicate regimes where another non-oracle method is cheaper. The hostile corner is intuitive: when invalid execution costs only 1.0 and probes cost 4.0, family repair is cheaper than \ACS{} by 19.7 median cost units. When invalid execution costs 4.0 and probes cost 4.0, family repair still wins by 13.0. When invalid execution costs 8.0 and probes cost 4.0, the gap narrows to 5.0.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.78\linewidth]{figures/full_scale_cost_sensitivity.pdf}
+    \caption{Cost sensitivity at active probability 0.35. Each cell shows \ACS{} median cost minus the best non-oracle median cost. Positive values are regimes where another method is cheaper.}
+    \label{fig:cost}
+\end{figure}
+
+Across the full cost grid, \ACS{} is best or tied in 157 of 180 settings, family repair in 18, and edge verification in 5. Edge verification wins only when verifier calls are cheap enough relative to probes and invalid executions. This supports the cost analysis: \ACS{} is not universally dominant, but its positive regime is broad when invalid execution and repeated feasibility calls are meaningful costs.
+
+\subsection{Qualitative Case Studies}
+
+The simulator lets us inspect representative worlds. In a baseline active-probability 0.35 world with active families \texttt{wet\_floor}, \texttt{human\_exclusion}, and \texttt{payload\_limit}, the cheapest nominal paths repeatedly cross tagged shortcuts. Blind repair finds one invalid shortcut, blacklists one edge, and then finds another shortcut with the same active family. Family repair observes the first violation, masks the family, and avoids many future failures, but still pays for the discovery through failure. \ACS{} masks all three active families before search and immediately selects the conservative route.
+
+In a low-label-density world, fewer edges carry labels, so active-family discovery removes fewer alternatives. \ACS{} still avoids invalid tagged edges, but the relative improvement over family repair is smaller. In a wide-dense world, the opposite happens: many tempting low-cost edges share active labels, so edge verification pays more than a thousand checks on average while \ACS{} pays eight probes. In the bridge false-positive world, the problem is not cost but completeness: a single erroneous family in the signature removes a mandatory cut. This case is the reason the method section includes abstention rather than presenting false positives as harmless.
+
+\section{Discussion}
+
+\subsection{What \ACS{} Adds}
+
+\ACS{} adds a planner-facing representation for a common embodied-planning situation: many actions are invalid for the same latent reason. The representation is small, instance-level, and applied before search. This changes the order of operations. Instead of search asking many local feasibility questions and gradually discovering repeated structure, the diagnostic stage summarizes the family structure once.
+
+The contribution is therefore less about inventing a new planner and more about changing what the planner is told. In a TAMP system, an \ACS{} module could run before symbolic search and remove operators or stream instances whose family labels are active. In a motion-planning graph, it could remove route classes. In a learning-augmented planner, it could turn perception outputs into a discrete mask before a feasibility model is queried. In a language-guided planner, it could convert task constraints into a compact active set that downstream search actually uses.
+
+\subsection{When the Abstraction Is Appropriate}
+
+The abstraction is appropriate when family labels are reusable and diagnostic evidence is cheaper than repeated discovery. It fits settings with shared terrain constraints, payload constraints, workspace zones, object-state prerequisites, or perception-mode restrictions. It is less appropriate when invalidity is idiosyncratic to individual edges, when labels are unavailable, or when a continuous feasibility solver must reason about geometry that cannot be summarized by the family vocabulary.
+
+\subsection{Why Fallback Verification Matters}
+
+The stress tests make a simple point: a direct mask is brittle if treated as the only safety mechanism. False negatives leave invalid edges. Missing labels leave invalid edges even when the signature is correct. False positives can remove valid paths. The robust design is therefore layered. Use \ACS{} to remove high-level families before search; verify the selected path before execution; blacklist concrete rejected edges when labels are missing; and abstain to a verifier when the mask disconnects the graph. This layered design keeps the amortization benefit without pretending that a family certificate is omniscient.
 
 \section{Limitations}
 
-The current evidence is a proof-of-mechanism abstraction, not a hardware demonstration. The constraint vocabulary is known. Edge labels are supplied by the simulator. Diagnostics are exact in the main result, and the v2 stress shows that false negatives rapidly undermine plan validity. The cost model is illustrative. A deployed ACS system would need calibrated probes, perception uncertainty, abstention when signatures are ambiguous, recovery from false positives, and integration with continuous motion feasibility checks. The paper should therefore be read as identifying a planning mechanism and evaluation regime, not as closing the full robot-learning problem.
+The most important limitation is that this is a simulation and formal-abstraction paper, not a hardware paper. No physical robot, perception system, or calibrated probe model is evaluated. The simulator makes active families and edge labels explicit so the planner-side mechanism can be isolated.
 
-\section{Reproducibility Statement}
+Second, the family vocabulary is fixed. \ACS{} does not discover arbitrary new physics. It can only reason about families that have been modeled, labeled, and diagnosed. Unknown constraints require monitors, fallback verification, or a separate learning process.
 
-The repository contains all source needed to regenerate the evidence: `scripts/run\_experiments.py' runs the simulator, writes raw trials to `results/raw\_trials.csv', aggregates `results/summary.csv', writes the signature-noise stress to `results/signature\_noise\_stress.csv', and produces Figure~\ref{fig:main}. The literature sweep is also scripted: `scripts/literature\_pipeline.py' generates the 1000-paper matrix, 300-paper skim, 225-paper deep-read subset, and 100-paper hostile set. No proprietary data or external robot hardware is required.
+Third, the main theorem assumes exact signatures. The experiments show that false negatives are dangerous. Selected-path fallback fixes the tested cases, but a real robot would need safety-rated checks, conservative execution monitoring, and calibrated uncertainty thresholds.
+
+Fourth, edge labels are assumed available in the main result. The label-quality stress shows that missing labels can be as dangerous as missed diagnostics. This is especially relevant for learned or language-generated action models, where semantic labels may be incomplete.
+
+Fifth, the cost model is illustrative. The cost-sensitivity study reduces this concern but does not replace robot-specific calibration. A warehouse robot, household manipulator, and mobile inspection robot would assign different costs to probing, verification, invalid execution, and failure.
+
+Finally, the graph abstraction does not prove anything about continuous dynamics, contact-rich manipulation, deformable objects, or human-robot interaction. It should be read as a controlled mechanism study: if family-level constraints are real and diagnosable, then pre-search active signatures can change planning cost.
+
+\section{Reproducibility}
+
+The repository contains all code and generated artifacts. The original small sweep is reproduced by:
+\begin{center}
+\texttt{python scripts/run\_experiments.py}
+\end{center}
+The full-scale pass is reproduced by:
+\begin{center}
+\texttt{python scripts/run\_full\_scale\_experiments.py}
+\end{center}
+The full-scale script writes streamed trials and summaries under \texttt{results/full\_scale/}, including:
+\begin{itemize}
+    \item main-scaling trial and summary CSVs;
+    \item signature-noise trial and summary CSVs;
+    \item label-quality trial and summary CSVs;
+    \item false-positive-stress trial and summary CSVs;
+    \item cost-sensitivity and cost-winner summary CSVs.
+\end{itemize}
+Figures used in the paper are generated under \texttt{paper/figures/}. The full-scale summary is in \texttt{docs/full\_scale\_results\_summary.md}. The code uses deterministic seeds and standard Python plus Matplotlib.
 
 \section{Ethics Statement}
 
-ACS is intended to reduce invalid robot actions by identifying active physical constraints before planning. The current paper does not deploy robots around humans. If used in safety-critical settings, false negatives could permit unsafe plans and false positives could block necessary robot behavior. A real system should pair ACS with conservative verification, monitoring, and human-approved safety procedures.
+\ACS{} is intended to reduce invalid robot actions by identifying active physical constraints before planning. The present work does not deploy robots around people. In a real system, false negatives could permit unsafe plans, false positives could block necessary actions, and incorrect labels could create a misleading sense of safety. Any safety-critical deployment would need independent verification, runtime monitoring, human-approved operating procedures, and conservative abstention when diagnostics are uncertain.
 
 \section{Conclusion}
 
-The paper's central claim is not that robots need constraints; that is already clear from decades of TAMP and motion-planning work. The claim is that, when many candidate actions share latent physical constraint families, the active set should be discovered before planning and represented as a planner-facing signature. ACS gives this idea a name, a formal boundary, and runnable evidence for the regime where it matters.
+The central claim is not that robot planning needs constraints; that is already clear from decades of planning work. The claim is that, when many candidate actions share latent physical constraint families, the active family set should be discovered before planning and represented as a planner-facing signature. In the tested abstraction, \ACS{} turns repeated edge failures and verifier calls into a small number of family probes. The result is strong in the intended regime, weak in predictable hostile regimes, and most robust when combined with selected-path fallback and abstention. That combination is the practical lesson: use active signatures to change the search space early, but keep verification close enough to catch the cases where the signature or labels are wrong.
 
 \bibliography{references}
 \bibliographystyle{iclr2026_conference}
 
 \appendix
-\section{Corpus Protocol}
 
-Before choosing the thesis, we ran a metadata-driven literature sweep over 24 searches covering robot planning, task-and-motion planning, constraint learning, feasibility prediction, action-model learning, affordances, contact planning, temporal constraints, and plan repair. The script retained 1000 scored entries, designated the top 300 as a serious skim, the top 225 as a deep-read subset, and selected 100 hostile papers most likely to make ACS incremental. The generated artifacts are `docs/related\_work\_matrix.csv', `docs/literature\_map.md', `docs/hostile\_prior\_work.md', and `docs/novelty\_boundary\_map.md'.
+\section{Algorithmic Details}
 
-\section{Proof Details and Adversarial Cases}
+\subsection{Direct \ACS{}}
 
-The sound-mask theorem depends on exact signatures. If $\hat{A}\subset A$, a false negative leaves some invalid edges in the graph and downstream verification or execution monitoring is still needed. If $A\subset\hat{A}$, a false positive may remove valid solutions and break completeness. Thus the theorem is best understood as a planner-side decomposition: if diagnostic discovery is sound and complete for the modeled family vocabulary, then the planner inherits the usual complete-search property on the masked graph.
+Direct \ACS{} is intentionally simple.
+\begin{enumerate}
+    \item For each family $c\in\Cset$, run the configured diagnostic query or probe.
+    \item Add $c$ to $\Ahat$ if the diagnostic certifies that the family is active.
+    \item Construct $\Gmask$ by removing every edge $e$ with $\ell(e)\cap\Ahat\neq\emptyset$.
+    \item Run the downstream planner on $\Gmask$.
+    \item Return the plan if one is found; otherwise report masked-graph failure.
+\end{enumerate}
 
-ACS is weakest when constraints are rare, diagnostic probes are expensive, or invalid execution is cheap. It is strongest when a small number of active families invalidate many tempting branches and when verifier calls or failed executions are expensive. These are exactly the conditions expressed by $Kc_p < Mc_v$ and $Kc_p + \Delta_{\mathrm{search}} < q c_f$.
+The simulator charges one probe per family for direct \ACS{}. In a real deployment, families may have different probe costs or may be inferred passively from perception. The theory only requires that the cost be accounted for before comparing against verifier calls or invalid execution.
+
+\subsection{\ACS{} With Selected-Path Fallback}
+
+The fallback variant used in the noise and label-quality suites is:
+\begin{enumerate}
+    \item Run direct \ACS{} to obtain a working mask $B$.
+    \item Plan on the graph masked by $B$ and by any concrete edges previously rejected.
+    \item Verify the selected path edge by edge before execution.
+    \item If every edge passes, execute the path.
+    \item If an edge fails, blacklist that concrete edge, add the active violated family to $B$, and replan.
+    \item Stop when a verified path is found or the masked graph has no path.
+\end{enumerate}
+
+The concrete-edge blacklist is crucial under missing planner labels. If an edge's label omitted the active family, adding the family to the mask would not remove that edge. The blacklist ensures progress even when the semantic label is incomplete.
+
+\subsection{Repair Baselines}
+
+Blind repair and family repair differ only in the generalization step. Blind repair blacklists the failed edge. Family repair blacklists the failed edge and masks every family actually responsible for that failure. Family repair is therefore a strong baseline: it uses the same family vocabulary as \ACS{}, but it discovers families only through failed candidate plans.
+
+\subsection{Verifier Baselines}
+
+The edge verifier is perfect in the simulator. During shortest-path search, every considered edge is checked against the true active set. This baseline is intentionally favorable in correctness and intentionally expensive in calls. The selected-path verifier is cheaper because it checks only the path returned by an unconstrained plan. It can still replan many times if successive low-cost paths are invalid.
+
+\section{Additional Proof Details}
+
+\subsection{Masked Graph Equivalence}
+
+Under exact signatures, the masked graph is equivalent to the modeled feasible graph:
+\[
+E_{\mathrm{valid}}=\{e\in E:\ell(e)\cap A=\emptyset\}
+\]
+and
+\[
+E_{\mathrm{mask}}=\{e\in E:\ell(e)\cap\Ahat=\emptyset\}.
+\]
+If $\Ahat=A$, then $E_{\mathrm{valid}}=E_{\mathrm{mask}}$. The downstream planner need not know the physical interpretation of the families. It only needs to search the resulting subgraph completely.
+
+\subsection{False-Negative Counterexample}
+
+Consider a graph with start $s$, goal $g$, and two paths. The cheap path has one edge labeled $c$, and the expensive path has no labels. Let $A=\{c\}$ but $\Ahat=\emptyset$. Direct \ACS{} leaves the cheap edge in the graph, so a cost-optimal planner selects it. The path is invalid. Selected-path fallback catches the edge before execution and replans to the expensive valid path.
+
+\subsection{False-Positive Counterexample}
+
+Consider a graph with two layers and every start-to-goal path crossing a cut of edges labeled $c$. Let $A=\emptyset$ but $\Ahat=\{c\}$. Every cut edge is valid, but direct \ACS{} removes all of them. The masked graph has no path. This is not a safety violation; it is a completeness violation. The bridge stress in the experiments implements this case in the layered simulator.
+
+\subsection{Cost Decomposition}
+
+For a method $m$, write total cost as
+\[
+C_m = P_m + \alpha X_m + \beta V_m + \gamma R_m + \delta I_m + \phi F_m,
+\]
+where $P_m$ is path cost, $X_m$ expansions, $V_m$ verifier calls, $R_m$ probes, $I_m$ invalid executions, and $F_m$ failure indicator. The default coefficients are $\alpha=0.03$, $\beta=0.18$, $\gamma=0.55$, $\delta=18.0$, and $\phi=250.0$. \ACS{} has $R_m=K$ and usually $V_m=I_m=0$ under exact signatures. Edge verification has $R_m=I_m=0$ but large $V_m$. Repair has $R_m=V_m=0$ but can have large $I_m$ and repeated expansions. This decomposition is why the cost grid can be recomputed from behavior components without rerunning the simulator.
+
+\section{Simulator Details}
+
+\subsection{Graph Generation}
+
+Each problem has a start node in layer zero and a goal node in the final layer. The generator first adds a conservative safe chain from start to goal. Safe-chain edges are untagged and have higher cost. It then adds alternative edges between adjacent layers. Alternative destinations are sampled from the next layer. With probability equal to the tag-density parameter, an alternative edge receives one family tag; with smaller probability it receives a second distinct tag. Tagged alternatives have lower nominal cost, so they are tempting when their families are inactive and invalid when their families are active.
+
+This construction creates the desired tension. A planner that ignores constraints is drawn toward cheap tagged edges. If the relevant family is active, many such edges are invalid for the same reason. \ACS{} removes them in one step, while repair and verification discover them through edge-level interactions.
+
+\subsection{Topology Profiles}
+
+The full-scale pass uses four profiles:
+\begin{itemize}
+    \item \textbf{Low-label-density}: depth 9, width 18, branching 5, tag density 0.45.
+    \item \textbf{Baseline}: depth 9, width 18, branching 5, tag density 0.78.
+    \item \textbf{Wide-dense}: depth 10, width 26, branching 7, tag density 0.82.
+    \item \textbf{Deep-sparse}: depth 14, width 14, branching 4, tag density 0.70.
+\end{itemize}
+Low-label-density tests weaker family sharing. Wide-dense tests broad frontiers and many verifier calls. Deep-sparse tests longer paths with less branching slack.
+
+\subsection{Random Seeds}
+
+Each suite uses deterministic seed blocks. The seed determines the graph, active family set, and, where applicable, diagnostic or label corruption. The full-scale script writes raw seed values into every trial CSV row so individual worlds can be reconstructed.
+
+\section{Additional Experimental Notes}
+
+\subsection{Why Median Cost}
+
+Repair methods have heavy-tailed costs. In many low-active trials, blind repair finds a valid path immediately and has low median cost. In trials with several active families on cheap shortcuts, it may execute dozens of invalid plans. Means reveal the invalid-execution burden, while medians reveal typical cost. We therefore report both median cost and mean invalid executions.
+
+\subsection{Why the Oracle Is Included}
+
+The oracle signature is not a deployable method. It is a lower bound showing the cost of planning with the true active set and no diagnostic cost. The gap between \ACS{} and the oracle measures fixed diagnostic overhead plus optional selected-path checks. If \ACS{} were far above the oracle in exact-signature settings, the mask itself would be inefficient. Instead, the gap is small and predictable.
+
+\subsection{Why Edge Verification Improves at High Active Probability}
+
+In the baseline sweep, edge verification median cost decreases from 120.16 at active probability 0.35 to 92.59 at probability 0.80. This may look counterintuitive. The reason is that high active probability causes many candidate edges to be rejected early, shrinking the reachable search frontier. Edge verification still pays many calls, but fewer valid low-cost alternatives survive. This is also why \ACS{} cost increases: it often falls back to the more expensive conservative chain after masking many families.
+
+\subsection{Interpreting Label Extra Tags}
+
+Extra tags are false positives at the edge-label level. They can be safe because they over-mask, but they can also remove all paths if the graph has little slack. The default label-quality suite shows small validity loss at 20\% extra labels. The bridge false-positive suite shows the extreme case where over-masking disconnects the graph. These results are consistent: false positives are usually safer than false negatives for execution validity, but not for completeness.
+
+\section{Suite Definitions and Rationale}
+
+\subsection{Main Scaling Suite}
+
+The main scaling suite varies active-family probability because that is the cleanest way to move from a regime where pre-search diagnosis is wasteful to a regime where it is highly amortized. At probability 0.00, every family probe is unnecessary; the best planner is simply the one that finds the cheap nominal path. At probability 0.05 and 0.10, many worlds still have few active families, so medians can remain close even when means reveal invalid executions. At probability 0.35, several active families are common enough that low-cost branches repeatedly fail. At probability 0.65 and 0.80, most cheap tagged branches are invalid and the conservative chain is frequently selected.
+
+This sweep is intentionally not a monotonic accuracy benchmark. The edge verifier's cost can decrease at high active probability because active constraints reject many edges early. Blind repair's cost increases because it keeps discovering invalid edges one at a time. \ACS{} increases modestly because it masks more of the cheap graph and therefore chooses costlier valid paths. These different shapes are useful: they show that the methods are paying for different kinds of information.
+
+The four topology profiles are meant to answer different reviewer objections. Low-label-density asks whether \ACS{} still helps when labels are less frequent and family sharing is weaker. Wide-dense asks whether the result survives a broader search frontier. Deep-sparse asks whether the result survives longer paths with fewer alternatives. The baseline profile keeps continuity with the original v2 sweep so that the larger pass can be compared to the earlier evidence.
+
+\subsection{Diagnostic-Noise Suite}
+
+The diagnostic-noise suite corrupts the active signature while leaving planner labels exact. This isolates uncertainty in the pre-planning diagnostic itself. Independent false negatives miss each active family separately. Correlated false negatives represent a sensor or classifier failure that can miss several active families together. Mixed noise combines false negatives and false positives. The biased payload-miss scenario represents a domain-specific weakness where payload-related families are harder to diagnose than other families.
+
+The reason to separate independent and correlated misses is that the same marginal miss rate can have different planning consequences. If misses are independent, many worlds still have most active families masked. If a correlated event misses all active families in a world, the planner can behave almost like it had no signature. The results reflect this difference: correlated 10\% misses produce lower direct \ACS{} validity than independent 10\% misses.
+
+The selected-path fallback is not an oracle. It does not check every expanded edge, and it does not know the active set in advance. It simply verifies the chosen path before execution. When a selected edge fails, the simulator reveals the violated active family, which is then added to the mask. This models a conservative robot that does not execute an unchecked path after relying on a noisy family diagnosis.
+
+\subsection{Planner-Label Suite}
+
+The planner-label suite holds the diagnostic exact and corrupts the mapping from edges to families. This is a different failure mode from diagnostic noise. A robot may correctly infer that the floor is wet, but if an action model fails to mark some low-friction shortcut as wet-floor-sensitive, the mask will not remove that edge. Conversely, a model may add overly broad wet-floor tags to edges that would actually be valid, raising cost or removing feasible paths.
+
+Missing-label conditions remove each existing tag independently with probability 0.10 or 0.20. Sparse coverage removes all tags from a fraction of tagged edges. Swap noise replaces some labels with other families, creating both missed true labels and extra false labels. Coarse-pair labels merge semantically related pairs such as fragile payload with payload limit and wet floor with narrow passage. Extra-label conditions add labels to otherwise valid edges.
+
+This suite produced one implementation lesson that is easy to miss. If fallback verification catches an invalid edge whose planner label is missing the active family, merely adding the family to the mask is not enough; the bad edge still lacks that family label and may be selected again. The fallback must also blacklist the concrete rejected edge. The released full-scale runner implements this behavior.
+
+\subsection{False-Positive Suite}
+
+The false-positive suite separates ordinary over-masking from completeness-breaking over-masking. In ordinary false-positive trials, one inactive family is added to the signature. Because the default graph has a conservative untagged chain and enough alternative edges, the planner usually finds a path. In the bridge construction, an inactive family label is added to every edge in a mandatory layer cut and then falsely activated. Direct \ACS{} removes the cut and has no path.
+
+This suite exists to prevent a misleading safety story. It is tempting to say that false positives are safe because they remove actions rather than permit invalid actions. That is only true for execution validity, not for task completion. A robot that refuses all valid routes can still fail its mission. The right response is not to ignore false positives, but to detect disconnected masks and abstain to a stronger planner or verifier.
+
+\subsection{Cost-Sensitivity Suite}
+
+The cost-sensitivity suite reuses behavior components from fixed trials and changes only the coefficients. This avoids rerunning the simulator for every cost grid cell and makes the comparison transparent. Probe cost ranges from cheap passive diagnostics to expensive active tests. Invalid-execution cost ranges from almost harmless failed attempts to highly undesirable physical failures. Verifier cost ranges from a cheap cached predicate to a costly geometric or learned feasibility call.
+
+The resulting grid should be read as an operating map. If a domain has cheap invalid trials and expensive probes, family repair may be the better engineering choice. If a domain has cheap verifiers, edge verification may be sufficient. If invalid executions or verifier calls are costly and active families have high fanout, \ACS{} is the natural choice. The paper's claim lives in that last region.
+
+\section{Extended Boundary Analysis}
+
+\subsection{Why Family Granularity Matters}
+
+The family vocabulary is the unit that lets \ACS{} amortize. If every edge has a unique label, then \ACS{} degenerates toward edge-level verification because each probe removes at most one edge. If all edges share one giant label, then the signature is too coarse and false positives can remove too much. The useful middle is a vocabulary where each family captures a physically meaningful source of repeated invalidity.
+
+The simulator's families are deliberately interpretable. Payload fragility, wet floors, narrow passages, human exclusion, thermal contact, payload limits, sealed containers, and low light are not arbitrary clusters. Each describes a physical condition that can invalidate many actions across a graph. A real deployment would need a similar design exercise: families should be broad enough to generalize and narrow enough to avoid destructive over-masking.
+
+\subsection{Why Timing Matters}
+
+Family repair and \ACS{} use similar information at different times. Family repair waits for a failed edge to reveal a family. \ACS{} obtains the family before the first plan. If invalid execution is cheap, waiting may be reasonable. If invalid execution is costly or unsafe, waiting is the wrong interface. The experiments quantify this timing effect. At active probability 0.35, family repair is much better than blind repair, but still costs nearly three times direct \ACS{} in the baseline topology.
+
+Timing also affects computation. A family learned after several replanning attempts has already shaped the search history. A family masked before search changes the first frontier. This distinction is why selected-path verification can still be expensive: it prevents execution failures, but it may repeatedly plan through invalid families before discovering enough edges or families to avoid them.
+
+\subsection{Why Completeness Is Conditional}
+
+The theorem proves completeness only for the masked feasible graph under exact signatures. It does not say that the original graph's feasible paths survive false positives, and it does not say that unmodeled constraints are handled. This conditional statement is a feature rather than a weakness. It tells the system designer exactly what must be true for direct masking to be trusted: the family vocabulary must cover the relevant invalidity, the signature must be exact enough, and the labels must be correct enough.
+
+The robust variants relax these requirements by adding verification and abstention. They do not make \ACS{} magically complete under arbitrary errors. Instead, they turn direct \ACS{} into the first layer of a conservative planning interface. When the first layer has evidence, it saves work. When it creates a disconnected graph or a selected-path check fails, the system falls back.
+
+\section{Hardware Translation Plan}
+
+\subsection{What Would Need to Be Built}
+
+A hardware validation would need four components absent from this paper. First, it would need a family vocabulary tied to a real robot's skills and environment. Second, it would need edge or operator labels saying which families affect which skills. Third, it would need diagnostic procedures with measured reliability. Fourth, it would need an execution monitor or selected-path verifier that can prevent unsafe execution when the signature is uncertain.
+
+For a mobile manipulator in a lab or warehouse, candidate families might include wet or slippery floors, blocked aisles, human exclusion zones, fragile payloads, object weight limits, sealed containers, and poor lighting. Passive diagnostics could come from semantic maps, force-torque readings, object metadata, human-presence sensors, and lighting measurements. Active diagnostics could include short traction probes, grasp force checks, handle-state tests, or camera exposure tests.
+
+\subsection{What Metrics Would Transfer}
+
+The cost units in this paper would need replacement by domain metrics: wall-clock planning time, number of expensive feasibility calls, number of aborted executions, number of human interventions, energy, and mission completion rate. The structure of the comparison would transfer. The hardware study should compare direct planning, repair, selected-path verification, edge verification, \ACS{}, \ACS{} with fallback, and an oracle or offline-labeled upper bound when possible.
+
+The most important hardware metric would be not only success rate but also \emph{when} the system discovers constraints. Discovering a wet-floor family before route planning is different from discovering it after commanding a shortcut. Discovering a payload limit before grasp selection is different from discovering it through a failed lift. The timing of information is the central hypothesis.
+
+\subsection{Expected Failure Cases on Hardware}
+
+The likely hardware failures are clear from the simulator. A diagnostic false negative could leave an unsafe action available. A false positive could cause the robot to refuse all efficient routes. A missing operator label could let an active family slip through even though the diagnostic was correct. A family vocabulary could be too coarse, causing over-conservative plans, or too fine, losing amortization. Continuous geometry could also create invalidity that is not represented by any family label.
+
+These are not reasons to avoid the abstraction. They are reasons to pair it with verification, monitoring, and abstention. A real robot should not execute merely because a signature says the graph is safe. It should use the signature to reduce the candidate space and then verify the selected plan at the appropriate safety level.
+
+\section{Additional Threats to Validity}
+
+\subsection{Simulator Bias}
+
+The generator intentionally makes tagged low-cost alternatives tempting. This is the regime where family-level discovery should help. If a domain has no such structure, \ACS{} will be less useful. The low-label-density and deep-sparse profiles partially address this by reducing label sharing and changing path structure, but they do not cover all possible graph families.
+
+\subsection{Perfect Family Observation in Main Result}
+
+The main result uses exact signatures to isolate the planner-side mechanism. That choice is defensible for a mechanism paper, but it would be insufficient for a deployment claim. The diagnostic-noise suite is therefore central: it shows that false negatives can reduce direct \ACS{} validity and that fallback verification is needed.
+
+\subsection{Known Edge Labels}
+
+The main result assumes edge labels are known. In practice, labels may be hand-coded, learned, inferred from operator schemas, or produced by language models. The label-quality suite shows that missing labels are dangerous. A deployment should treat label coverage as an auditable artifact, not as an implementation detail.
+
+\subsection{Cost Calibration}
+
+The default cost model favors settings where invalid execution and verifier calls matter. The cost grid shows when this is not true. Still, real costs may be nonlinear. A failed physical execution may damage hardware, delay a human coworker, or merely trigger a cheap retry. A verifier call may be milliseconds or seconds. Future work should calibrate these costs from real system logs.
+
+\subsection{Statistical Scope}
+
+The full-scale pass uses hundreds of trials per suite rather than exhaustive enumeration of all graphs. Results should be interpreted as evidence for the mechanism under the released generator, not as a theorem over all planning graphs. The raw CSVs expose seeds, active families, costs, and outcomes so that additional analyses can be run without changing the manuscript.
+
+\section{Design Alternatives Not Claimed}
+
+\subsection{Learning the Vocabulary}
+
+This paper assumes the family vocabulary is known. One could imagine learning families by clustering failed edges, discovering latent preconditions, or inducing symbolic abstractions. That is an important direction, but it is not the claim here. The present result starts after such a vocabulary exists and asks how the active subset should be used.
+
+\subsection{Probabilistic Signatures}
+
+The signature could be probabilistic rather than set-valued. A planner could keep a probability for each family and optimize expected cost or risk. That would be richer than direct masking, but it would also require a calibrated risk model. The set-valued signature studied here is simpler and exposes the core timing and amortization effect. The noise and fallback experiments are a first step toward uncertainty-aware signatures.
+
+\subsection{Partial Masking}
+
+Instead of removing all edges that intersect $\Ahat$, a planner could increase their cost, defer them, or require verification before use. Partial masking could reduce false-positive incompleteness. It would also complicate the formal guarantee because invalid edges might remain available. The abstention and selected-path fallback variants are conservative alternatives: they keep the mask simple and use verification when the mask is suspicious or insufficient.
+
+\subsection{Continuous Feasibility Integration}
+
+Nothing in \ACS{} prevents integration with continuous motion planning. A family mask could remove operator classes or route regions before a motion planner is called; remaining candidates would still need geometric checking. The paper does not implement such an integration because the goal is to isolate the family-level timing effect.
+
+\section{Implementation Notes for Larger Planners}
+
+\subsection{Operator and Stream Labeling}
+
+In a symbolic or stream-based TAMP implementation, family labels can live at several levels. They may be attached to operators, to grounded operator instances, to stream calls, to route segments, or to skill templates. The right level depends on how specific the family is. A payload-limit family might label all single-arm lift instances above a mass threshold, while a wet-floor family might label only navigation edges crossing a known low-friction region. The label should be attached at the most general level that remains physically sound.
+
+This matters because over-general labels create false positives and under-general labels create missed masks. The label-quality suite simulates both. Coarse-pair labels are safe in the default graph but costlier. Missing labels are unsafe without fallback. A practical system should therefore treat the label inventory as an audited part of the planner, similar to operator preconditions or safety constraints. It should be possible to ask: which skills are affected by this family, who added that label, and what evidence supports it?
+
+\subsection{Evidence Records}
+
+The signature should not be stored as a naked set in a deployed robot. Each family should have an evidence record: diagnostic source, confidence, timestamp, applicable scene region, and whether the family was inferred passively or through an active probe. This matters for replanning. A human-exclusion family may expire when a person leaves a zone. A wet-floor family may persist for a long time. A sealed-container family may be cleared after an opening action. The finite graph in this paper treats active sets as static within a trial; a real robot should attach update semantics to every family.
+
+Evidence records also make abstention practical. If a low-confidence family disconnects the graph, the planner can decide whether to verify, reprobe, ask a human, or temporarily relax that family under supervision. Without evidence records, all false positives look the same and the system has no principled way to choose a fallback.
+
+\subsection{Caching and Invalidation}
+
+Family diagnostics are naturally cacheable, but the cache must be invalidated when the world changes. Payload fragility can be cached per object. Wet-floor status can be cached per region. Human exclusion status may need frequent refresh. Low-light perception may change as the robot moves or lights change. The diagnostic cost in this paper is a fixed one-probe-per-family cost, but a deployed system would likely have a mixture of cached, passive, and active diagnostics.
+
+The cache interacts with planning cost. If a family has a fresh cached certificate, \ACS{} becomes cheaper. If a family requires a costly active probe every time, \ACS{} may lose in low-risk settings. The cost grid is meant to cover this variation abstractly. A deployment should replace the grid with measured cache-hit rates and probe latencies.
+
+\subsection{Interfacing With Existing Planners}
+
+\ACS{} can be added to an existing planner with a preprocessing layer. Given a planning problem, the layer computes $\Ahat$ and filters operator instances, stream candidates, route edges, or skill choices before ordinary search. For a planner that already supports constraints, \ACS{} can be represented as additional instance-level preconditions. For a sampling-based TAMP planner, it can avoid sampling streams for families known to be inactive or invalid. For a graph planner, it is simply an edge filter.
+
+The selected-path fallback can also be modular. It sits after the planner returns a path but before execution. It can call the same validators that would otherwise be used during execution monitoring. If a validator rejects an edge, the fallback updates the mask and replans. This modularity is why \ACS{} is best understood as a planner interface rather than a monolithic planner.
+
+\section{Detailed Method Interpretation}
+
+\subsection{Blind Repair}
+
+Blind repair is intentionally naive, but it is still an important baseline. It represents systems that treat a failure as local unless the planner designer has explicitly encoded broader structure. Its poor high-active performance is not surprising; that is the point. When active families invalidate many low-cost branches, local blacklisting wastes the fact that the same physical reason is repeating. The mean invalid-execution curve is the clearest signal: blind repair averages 21.38 invalid executions at active probability 0.35 and 83.47 at probability 0.80 in the baseline topology.
+
+\subsection{Family Repair}
+
+Family repair is the strongest repair baseline because it uses the same family vocabulary as \ACS{}. It narrows the novelty claim. If family repair had matched \ACS{} across all regimes, then pre-search timing would not matter much. Instead, family repair is competitive only when the cost of observing the first failure is acceptable. It loses when invalid execution is expensive or when several active families are likely to be discovered through separate failed paths.
+
+\subsection{Selected-Path Verification}
+
+Selected-path verification is a natural safety layer. It avoids executing invalid plans and checks far fewer edges than full edge verification. However, it can still spend many attempts on plans that are invalid for the same repeated reason. It is best viewed as a complement to \ACS{}, not a substitute. The robust \ACS{} variants use selected-path verification precisely because it catches residual false negatives while preserving most of the pre-search mask benefit.
+
+\subsection{Full Edge Verification}
+
+The edge verifier is correctness-friendly and often conceptually simple: check every candidate edge as search encounters it. Its weakness is call volume. In the wide-dense topology at active probability 0.35, it averages 1361.50 edge checks. If those checks are cheap, edge verification may be preferable. If they are geometric optimizations, learned model calls, or physical feasibility tests, a family signature can be much cheaper.
+
+\subsection{\ACS{} and the Oracle}
+
+\ACS{} should be compared to the oracle signature to understand its overhead. In exact-signature settings, they search the same masked graph. The oracle has no probe cost; \ACS{} pays eight probes. This gap is visible and stable. If a future implementation has passive diagnostics, the gap should shrink. If diagnostics are expensive active tests, the gap should grow and may erase the benefit in low-risk settings.
+
+\section{Negative Findings Preserved in the Claim}
+
+The final claim intentionally preserves several negative findings.
+\begin{itemize}
+    \item \ACS{} loses when no constraints are active because it pays unnecessary probe cost.
+    \item \ACS{} can lose when probe cost is high and invalid execution cost is low.
+    \item Direct \ACS{} is unsafe under false negatives unless selected paths are verified or execution is otherwise guarded.
+    \item Direct \ACS{} is unsafe under missing planner labels because the correct family may fail to remove a mislabeled edge.
+    \item False positives can break completeness by disconnecting the masked graph.
+    \item The simulator does not validate hardware perception, contact dynamics, or real diagnostic probes.
+\end{itemize}
+These negative findings are not side comments; they define the safe scope of the contribution. The paper is strongest because it does not need to hide them. In the right regime, \ACS{} is very effective. Outside that regime, repair, verification, abstention, or richer uncertainty handling may be the better engineering choice.
+
+\section{Full-Scale Artifact Map}
+
+The full-scale run creates the following main artifacts.
+\begin{center}
+\footnotesize
+\begin{tabular}{p{0.37\linewidth}p{0.55\linewidth}}
+\toprule
+Artifact & Purpose \\
+\midrule
+Main scaling trials & Per-trial rows for topology and active-probability sweep. \\
+Main scaling summary & Aggregated main-scaling metrics. \\
+Signature-noise trials & Per-trial diagnostic-noise stress results. \\
+Signature-noise summary & Aggregated diagnostic-noise metrics. \\
+Label-quality trials & Per-trial planner-label corruption results. \\
+Label-quality summary & Aggregated planner-label metrics. \\
+False-positive stress trials & Completeness stress under ordinary and bridge false positives. \\
+Cost-sensitivity summary & Recomputed method costs over the grid. \\
+Cost-winner summary & Best non-oracle method per grid cell. \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The script also writes LaTeX tables used by the paper and the five full-scale figures under \texttt{paper/figures/}. The generated files are intentionally small enough to inspect and version.
+
+\section{Relation to the Literature Sweep}
+
+Before selecting the thesis, the repository generated a literature map over robot planning, task-and-motion planning, constraint learning, feasibility prediction, action-model learning, affordances, contact planning, temporal constraints, and plan repair. The purpose of that sweep was not to prove novelty automatically. It was to identify hostile prior work and narrow the claim. The resulting novelty boundary is reflected in this paper: we avoid claiming broad constraint learning, broad TAMP integration, or language-guided specification novelty. The claim is the pre-search active-family signature as a planner-facing object.
+
+\section{Reviewer-Facing Failure Modes}
+
+A skeptical reviewer might ask whether \ACS{} is just a verifier. The answer is no: the verifier answers edge queries during search; \ACS{} returns a family set before search. The edge verifier in the experiments is perfect and still costly.
+
+A reviewer might ask whether family repair already solves the problem. Family repair is strong and sometimes competitive, especially when invalid execution is cheap. The difference is timing. Family repair learns a family only after observing a failed edge; \ACS{} masks the family before the first plan is generated.
+
+A reviewer might ask whether the method is unsafe under diagnostic noise. Direct \ACS{} can be unsafe under false negatives; the experiments show this directly. The robust variant uses selected-path verification before execution and restores validity in the tested noise regimes.
+
+A reviewer might ask whether false positives are ignored. They are not. The bridge construction shows a 0.000 success rate for direct \ACS{} under a false positive that masks a mandatory cut. The abstention fallback restores success at verifier-like cost.
+
+A reviewer might ask whether the result is hardware-ready. It is not. The paper is a mechanism study and says so in the abstract, limitations, and reproducibility sections.
+
+\section{Practical Deployment Sketch}
+
+A practical deployment would likely use \ACS{} as one layer in a larger planning stack.
+\begin{enumerate}
+    \item Define a family vocabulary jointly with task operators, semantic maps, and safety constraints.
+    \item Label operators, streams, route classes, or skill instances with families that would invalidate them.
+    \item Build diagnostic modules for each family, with calibrated confidence and abstention thresholds.
+    \item Before planning, produce $\Ahat$ and an evidence record.
+    \item Mask high-confidence active families.
+    \item Run the downstream planner.
+    \item Verify the selected path or skill sequence before execution.
+    \item If verification rejects an edge, blacklist that edge, update the family mask, and replan.
+    \item If the mask disconnects the graph or confidence is low, abstain to a stronger verifier or a human-approved fallback.
+\end{enumerate}
+This sketch is deliberately conservative. The paper's results support pre-search masking as an efficiency mechanism, not as a license to remove independent safety checks.
+
+\section{Checklist for Reproducing the Final PDF}
+
+To reproduce the final manuscript:
+\begin{enumerate}
+    \item Install Python dependencies from \texttt{requirements.txt}.
+    \item Run \texttt{python scripts/run\_full\_scale\_experiments.py}.
+    \item Confirm that \texttt{results/full\_scale/progress.json} has stage \texttt{complete}.
+    \item Build from the \texttt{paper/} directory with \texttt{pdflatex}, \texttt{bibtex}, and two more \texttt{pdflatex} passes.
+    \item Check that the PDF contains the five full-scale figures and four generated tables.
+    \item Check that no old internal version banner appears in the text.
+\end{enumerate}
 
 \end{document}
