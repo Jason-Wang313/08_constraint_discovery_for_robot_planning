@@ -2,15 +2,15 @@
 
 ## Decision
 
-Workshop-only.
+Full-scale simulation-ready final.
 
 ## Rationale
 
-The v2 paper is stronger because it adds the noisy-signature stress missing from the initial audit. The result supports ACS under exact or low-miss diagnostics, but it shows false negatives quickly undermine valid planning.
+The final pass expands the paper beyond the initial ACS sweep into a 26-page manuscript with topology scaling, selected-path verification, diagnostic-noise stress, planner-label stress, false-positive completeness stress, and cost-sensitivity analysis. The core mechanism is now supported and bounded by multiple positive and negative findings.
 
-The paper is not ready for a main conference because the evidence is synthetic, the constraint vocabulary and edge labels are supplied, and no real robot or real TAMP benchmark is evaluated.
+The paper still should not claim physical-robot validation. The evidence remains a controlled simulator and formal abstraction with known constraint families and supplied edge labels.
 
-## Required Before Main-Conference Submission
+## Required Before A Stronger Hardware/Benchmark Claim
 
 - Real TAMP benchmark or robot-task integration.
 - Learned/calibrated diagnostic probes with uncertainty estimates.
