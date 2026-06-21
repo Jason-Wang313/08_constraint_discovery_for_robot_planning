@@ -11,3 +11,10 @@
   - Response: Preserved as a limitation and tested with planner-label corruption. With 20% missing labels, direct ACS valid-plan rate is 0.412; fallback reaches 1.000 by checking and blacklisting rejected edges.
 - Attack: No hardware or real TAMP benchmark.
   - Response: The final manuscript states simulation scope in the abstract, limitations, reproducibility, and conclusion. No hardware claim is made.
+
+## Artifact Hardening Note
+
+The 2026-06-21 export explicitly installs the visible VLA-v4 boxed-link convention:
+green citation/URL boxes, red internal-reference boxes, one-point borders, and no
+cyan link boxes in the audited final PDF. The previous final PDF had no link
+annotations because active `paper/main.tex` did not load `hyperref`.

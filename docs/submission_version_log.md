@@ -9,6 +9,17 @@
 - Updated reproducibility, audit, and readiness docs.
 - Terminal decision: full-scale simulation-ready final; still no hardware-validation claim.
 
+## Final-link-hardening - 2026-06-21
+
+- Added `hyperref` plus explicit VLA-style `\hypersetup` policy for boxed PDF links; the prior final PDF had no link annotations.
+- Rebuilt from `paper/` with `pdflatex`, `bibtex`, `pdflatex`, `pdflatex`.
+- Canonical PDF: `C:/Users/wangz/Downloads/08.pdf` (26 pages, 397,753 bytes).
+- SHA256: `962CE3D8110DEE1A30DB3ABD31211CA3497048BDEB33415972E2EEB6CC717DB2`.
+- Link inventory: 63 annotations on pages `[(1, 13), (2, 35), (3, 6), (7, 2), (9, 4), (10, 2), (11, 1)]`; green = 54, red = 9, cyan = 0; all borders `(0, 0, 1)`.
+- Rendered pages 1, 2, 3, 7, 9, 10, and 11 after export and confirmed crisp green citation/URL boxes and red internal-reference boxes.
+- Local `paper/main.pdf` removed after the canonical copy.
+- No additional `C:/Users/wangz/Downloads/8.pdf` duplicate was created.
+
 ## v2 - 2026-06-12
 
 - Added `results/signature_noise_stress.csv`, `results/signature_noise_summary.csv`, and `results/signature_noise_table.tex`.

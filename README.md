@@ -60,6 +60,15 @@ The required final PDF for the batch run is copied outside the repo to:
 C:/Users/wangz/Downloads/08.pdf
 ```
 
+Current final export: 26 pages, 397,753 bytes, SHA256 `962CE3D8110DEE1A30DB3ABD31211CA3497048BDEB33415972E2EEB6CC717DB2`.
+
+VLA-style boxed-link verification:
+
+- Link annotations: 63 total on pages `[(1, 13), (2, 35), (3, 6), (7, 2), (9, 4), (10, 2), (11, 1)]`.
+- Annotation colors: green = 54, red = 9, cyan = 0.
+- Border widths: `(0, 0, 1)` for all link annotations.
+- Visual audit: rendered pages 1, 2, 3, 7, 9, 10, and 11; green citation/URL boxes and red internal-reference boxes are crisp and aligned.
+
 ## Notes
 
 The simulator is a proof-of-mechanism abstraction, not a physical-robot validation. It assumes a known constraint-family vocabulary and exact diagnostic probes in the main result so the planning-side effect of pre-search active-set discovery can be isolated.

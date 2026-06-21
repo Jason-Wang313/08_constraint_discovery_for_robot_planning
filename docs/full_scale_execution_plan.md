@@ -107,3 +107,15 @@ Before copying anything to Downloads:
 - Update final audit/reproducibility docs.
 - Commit and push Paper 08 changes.
 - Verify git status is clean and upstream matches before moving to Paper 09.
+
+## Post-v3 VLA Link-Hardening Acceptance
+
+Checked: 2026-06-21
+
+- Active `paper/main.tex` now loads `hyperref` and the explicit VLA-style `\hypersetup` policy.
+- Final PDF remains 26 pages and is exported to `C:/Users/wangz/Downloads/08.pdf`.
+- Final export metadata: 397,753 bytes, SHA256 `962CE3D8110DEE1A30DB3ABD31211CA3497048BDEB33415972E2EEB6CC717DB2`.
+- Link inventory: 63 annotations on pages `[(1, 13), (2, 35), (3, 6), (7, 2), (9, 4), (10, 2), (11, 1)]`; green = 54, red = 9, cyan = 0; all borders `(0, 0, 1)`.
+- Visual audit rendered pages 1, 2, 3, 7, 9, 10, and 11 and confirmed crisp, aligned green citation/URL boxes and red internal-reference boxes.
+- Local `paper/main.pdf` was removed after the canonical copy.
+- No duplicate `C:/Users/wangz/Downloads/8.pdf` was created.
