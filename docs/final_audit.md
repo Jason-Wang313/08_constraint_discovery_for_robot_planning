@@ -24,8 +24,22 @@ Checked: 2026-06-14
 
 11. **Final paper status:** Full-scale final manuscript, 26 pages, simulation-scoped and submission-shaped. It is still honest that hardware or real TAMP benchmark validation would be required for a stronger empirical robotics claim.
 
-12. **Exact Downloads PDF path:** `C:/Users/wangz/Downloads/08.pdf`
+12. **Exact Downloads PDF path:** `C:/Users/wangz/Downloads/08.pdf` (26 pages, 397,753 bytes, SHA256 `962CE3D8110DEE1A30DB3ABD31211CA3497048BDEB33415972E2EEB6CC717DB2`)
 
-13. **Final PDF verification:** `C:/Users/wangz/Downloads/08.pdf`, 26 pages, 327986 bytes, copied after LaTeX log and text scans passed. Local `paper/main.pdf` removed after copy.
+13. **Final PDF verification:** `C:/Users/wangz/Downloads/08.pdf`, 26 pages, 397,753 bytes, copied after LaTeX log, link, visual, and text scans passed. Local `paper/main.pdf` removed after copy.
 
-14. **GitHub URL:** `https://github.com/Jason-Wang313/08_constraint_discovery_for_robot_planning`
+14. **VLA-style boxed-link audit:** 63 link annotations on pages `[(1, 13), (2, 35), (3, 6), (7, 2), (9, 4), (10, 2), (11, 1)]`; colors green = 54, red = 9, cyan = 0; all borders `(0, 0, 1)`.
+
+15. **Visual link audit:** pages 1, 2, 3, 7, 9, 10, and 11 rendered after export; green citation/URL boxes and red internal-reference boxes are crisp and aligned.
+
+16. **GitHub URL:** `https://github.com/Jason-Wang313/08_constraint_discovery_for_robot_planning`
+
+## VLA-Style Link Hardening
+
+Checked: 2026-06-21
+Action: Added `hyperref` plus explicit VLA-style `\hypersetup` policy, rebuilt with `pdflatex`, `bibtex`, `pdflatex`, `pdflatex`, copied the final PDF to Downloads, and removed local `paper/main.pdf`.
+Decision: Final link styling matches the visible VLA-v4 role model; this pass added boxed links to a previously unlinked final PDF.
+Downloads PDF: C:/Users/wangz/Downloads/08.pdf (26 pages, 397,753 bytes, SHA256 `962CE3D8110DEE1A30DB3ABD31211CA3497048BDEB33415972E2EEB6CC717DB2`)
+Link audit: 63 annotations on pages `[(1, 13), (2, 35), (3, 6), (7, 2), (9, 4), (10, 2), (11, 1)]`; green = 54, red = 9, cyan = 0; all borders `(0, 0, 1)`.
+Visual audit: rendered pages 1, 2, 3, 7, 9, 10, and 11; boxes are crisp and aligned.
+Filename policy: no duplicate `C:/Users/wangz/Downloads/8.pdf` created.

@@ -20,3 +20,12 @@ cost 21.97, compared with 229.86 for blind repair, 61.55 for family repair,
 68.14 for selected-path verification, and 120.16 for a perfect edge verifier.
 
 See `docs/full_scale_results_summary.md` for the detailed final summary.
+
+## Final Artifact
+
+- Canonical PDF: `C:/Users/wangz/Downloads/08.pdf`
+- Pages: 26
+- Size: 397,753 bytes
+- SHA256: `962CE3D8110DEE1A30DB3ABD31211CA3497048BDEB33415972E2EEB6CC717DB2`
+- VLA-style boxed-link inventory: 63 annotations on pages `[(1, 13), (2, 35), (3, 6), (7, 2), (9, 4), (10, 2), (11, 1)]`; green = 54, red = 9, cyan = 0; all borders `(0, 0, 1)`.
+- Visual audit: rendered pages 1, 2, 3, 7, 9, 10, and 11 after export and confirmed crisp, aligned link boxes.
